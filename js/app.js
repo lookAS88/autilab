@@ -14,7 +14,7 @@
   ];
 
   AL.screens.home = {
-    render(root) {
+    render(root, params, scope) {
       const name = (AL.Config.data.child.name || '').trim();
       const mods = AL.MODULE_LIST.filter((m) => AL.Config.s.modules[m.id]);
       root.append(el('h1', { class: 'screen-title' }, name ? `Ahoj, ${name}!` : 'Ahoj!'));
@@ -26,6 +26,19 @@
       })));
       if (!mods.length) grid.append(el('p', { class: 'screen-sub' }, 'Všetky aktivity sú vypnuté. Zapnite ich v Rodičovskej zóne.'));
       root.append(grid);
+
+      // Nenápadná poznámka pre dospelých: prehliadač bez slovenského hlasu → aplikácia vety nevysloví
+      const hint = el('p', { class: 'adult-hint' });
+      const check = () => {
+        hint.textContent = AL.Speech.supported && AL.Speech.voices().length && !AL.Speech.canSpeak()
+          ? 'Pre dospelých: v prehliadači chýba slovenský hlas, vety zaznejú len z vašich nahrávok. Riešenie: Rodičovská zóna → Všeobecné → Hlas aplikácie.'
+          : '';
+      };
+      check();
+      scope.timeout(check, 1500); // zoznam hlasov sa v prehliadači načítava s oneskorením
+      if (window.speechSynthesis && window.speechSynthesis.addEventListener) scope.on(window.speechSynthesis, 'voiceschanged', check);
+      root.append(hint);
+
       root.append(AL.holdButton({ side: 'right', icon: 'gear', ms: 3000, hint: 'Rodičia: podržte 3 sekundy', onDone: () => AL.go('parent') }));
     },
   };

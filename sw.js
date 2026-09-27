@@ -2,7 +2,7 @@
    Aplikácia sa vždy načíta okamžite z uloženej kópie – aj keď je Wi-Fi bez internetu.
    Nová verzia sa stiahne celá naraz na pozadí (pri zmene CACHE nižšie) a použije sa pri ďalšom spustení,
    takže sa nikdy nepomiešajú staré a nové súbory. */
-const CACHE = 'autilab-v4'; // pri každej novej verzii aplikácie zvýšiť
+const CACHE = 'autilab-v5'; // pri každej novej verzii aplikácie zvýšiť
 const PREFIX = 'autilab-';  // mažeme len svoje kópie (na github.io môžu byť aj iné aplikácie toho istého účtu)
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'css/app.css',

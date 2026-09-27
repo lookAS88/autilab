@@ -194,6 +194,10 @@ button { font: inherit; color: inherit; }
 .home-grid.count-1 .tile { flex-basis: clamp(240px, 40vw, 420px); }
 .home-grid.count-1 .pic, .home-grid.count-2 .pic { max-width: min(320px, 40vh); }
 
+/* poznámka pre dospelých – mimo rozloženia, aby úvodná obrazovka nikdy neposúvala */
+.adult-hint { position: fixed; left: 16px; right: 16px; bottom: 6px; margin: 0; text-align: center; font-size: 12px; line-height: 1.3; color: var(--ink-faint); pointer-events: none; }
+.adult-hint:empty { display: none; }
+
 /* ---------- 1. Komunikácia (PECS) ---------- */
 .pecs-cards {
   flex: 1;

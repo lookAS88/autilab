@@ -358,8 +358,11 @@
   };
 
   /**
-   * Prehrávač pre senzorický trenažér. Hlasitosť 0..1 sa mapuje kvadraticky (vnímanie ucha) a strop nastavuje rodič.
+   * Prehrávač pre senzorický trenažér. Hlasitosť 0..1 sa mapuje v decibeloch (vnímanie ucha) a strop nastavuje rodič.
    */
+  // vyrovnanie syntetických zvukov (namerané), aby pri 100 % znel každý približne rovnako nahlas (≈ −12 dBFS)
+  const SYNTH_MAKEUP = { vacuum: 1.7, dryer: 1.0, bell: 1.4, baby: 0.7 };
+
   AL.SensoryPlayer = class {
     constructor(sound) {
       this.sound = sound;
@@ -367,9 +370,12 @@
       this.volume = 0;
       this.run = null;
     }
+    /* Posuvník mení hlasitosť rovnomerne podľa vnímania ucha: 100 % = strop rodiča, každých 10 % ≈ 3 dB.
+       Aj pri malých hodnotách je zvuk tichý, ale počuteľný (predtým bol pri 10 % prakticky nepočuť). 0 = ticho. */
     gainFor(v) {
+      if (!(v > 0)) return 0;
       const cap = AL.clamp(AL.Config.data.sensory.maxVolume / 100, 0, 1);
-      return Math.pow(v, 2) * cap;
+      return cap * Math.pow(10, (-30 * (1 - AL.clamp(v, 0, 1))) / 20);
     }
     setVolume(v) {
       this.volume = AL.clamp(v, 0, 1);
@@ -419,7 +425,11 @@
     startSynth(c, out, env, run) {
       const fn = SYNTHS[this.sound.synth];
       if (!fn) return;
-      const r = fn(c, out, env);
+      // syntetické zvuky sú od prírody tichšie ako bežná nahrávka – zosilníme ich (kompresor chráni pred skreslením)
+      const makeup = c.createGain();
+      makeup.gain.value = SYNTH_MAKEUP[this.sound.synth] || 2;
+      makeup.connect(out);
+      const r = fn(c, makeup, env);
       run.nodes.push(...(r.nodes || []));
       run.timers.push(...(r.timers || []));
       run.stopDelay = r.stopDelay || 0.4;
@@ -443,6 +453,9 @@
       }, run.stopDelay * 1000 + 80);
     }
   };
+  // pre meranie hlasitosti pri vývoji (OfflineAudioContext) – aplikácia to nepoužíva
+  AL.SensoryPlayer.synths = SYNTHS;
+  AL.SensoryPlayer.makeup = SYNTH_MAKEUP;
 
   /* ---------- Nahrávanie hlasu ---------- */
   AL.Recorder = {
