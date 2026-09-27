@@ -155,7 +155,7 @@
 
     root.append(title, el('div', { class: 'timer-run' }, el('div', { class: 'timer-visual' }, vis.node), side));
 
-    AL.keepAwake(scope);
+    const releaseAwake = AL.keepAwake(scope);
     const startAt = performance.now();
     let last = 0;
     let finished = false;
@@ -180,7 +180,8 @@
       vis.update(1);
       title.textContent = 'Hotovo!';
       clock.textContent = '';
-      if (t.endSound) AL.Sound.bell();
+      if (t.endSound) { try { AL.Sound.bell(); } catch (e) { /* ticho – koniec čakania musí prebehnúť vždy */ } }
+      scope.timeout(releaseAwake, 60000); // po skončení ešte minútu nechať obrazovku svietiť, potom môže zhasnúť
       calmCard.replaceWith(el('div', { class: 'side-card' },
         el('div', { class: 'done-mark', style: { width: '96px', height: '96px', borderRadius: '50%', background: 'var(--sage-soft)', display: 'grid', placeItems: 'center', flex: 'none' },
           html: AL.Icon('bigCheck').replace('stroke="currentColor"', 'stroke="#7FA88B"').replace('<svg ', '<svg style="width:60%;height:60%" ') }),

@@ -15,6 +15,7 @@
       }
       let current = sounds.find((s) => s.id === cfg.lastId) || sounds[0];
       let player = null;
+      let releaseAwake = null;
       let session = null;
 
       /* výber zvuku */
@@ -71,11 +72,13 @@
         player.setVolume(vol());
         player.start();
         session = { id: current.id, label: current.label, start: Date.now(), max: vol() };
+        if (!releaseAwake) releaseAwake = AL.keepAwake(scope); // obrazovka svieti len počas prehrávania
         paint();
       };
       const stop = () => {
         if (player) player.stop();
         player = null;
+        if (releaseAwake) { releaseAwake(); releaseAwake = null; }
         endSession();
         paint();
       };
@@ -106,7 +109,6 @@
       chooseTiles.forEach((b, i) => b.classList.toggle('selected', sounds[i] === current));
       picBox.append(AL.picture(current), waves);
       paint();
-      AL.keepAwake(scope);
 
       return () => stop();
     },

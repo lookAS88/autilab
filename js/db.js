@@ -52,8 +52,11 @@
     async init() {
       const keys = await AL.DB.keys('media');
       for (const k of keys) {
-        const blob = await AL.DB.get('media', k);
-        if (blob) urls.set(k, URL.createObjectURL(blob));
+        // jeden poškodený záznam nesmie zablokovať celú aplikáciu
+        try {
+          const blob = await AL.DB.get('media', k);
+          if (blob) urls.set(k, URL.createObjectURL(blob));
+        } catch (e) { console.warn('Médium sa nepodarilo načítať', k, e); }
       }
     },
     url(id) { return id ? urls.get(id) || null : null; },

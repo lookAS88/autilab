@@ -57,6 +57,7 @@
       const c = ac();
       if (!c) return;
       const vol = AL.Config.s.feedbackVolume;
+      if (!(vol > 0)) return; // exponenciálna rampa nesmie ísť na nulu (RangeError by zastavil koniec časovača)
       const t = c.currentTime;
       [[392, 0.2], [784, 0.07], [1176, 0.03]].forEach(([f, a]) => {
         const o = c.createOscillator();
@@ -90,13 +91,28 @@
     try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); } catch (e) { /* nič */ }
   }, { passive: true });
 
-  /* Nahrávky sa prehrávajú cez Web Audio: po prvom dotyku fungujú aj bez ďalšieho dotyku (dôležité na tabletoch) */
-  const decoded = new Map(); // id nahrávky → AudioBuffer
+  /* Nahrávky sa prehrávajú cez Web Audio: po prvom dotyku fungujú aj bez ďalšieho dotyku (dôležité na tabletoch).
+     Dekódované nahrávky držíme v pamäti, ale najviac ~60 MB (tablet by inak mohol aplikáciu zavrieť pre nedostatok pamäte). */
+  const decoded = new Map(); // id nahrávky → AudioBuffer (poradie = naposledy použité na konci)
+  const MAX_DECODED = 60 * 1024 * 1024;
+  const bytesOf = (b) => b.length * b.numberOfChannels * 4;
   async function decodeMedia(id) {
-    if (decoded.has(id)) return decoded.get(id);
+    if (decoded.has(id)) {
+      const b = decoded.get(id);
+      decoded.delete(id);
+      decoded.set(id, b);
+      return b;
+    }
     const blob = await AL.Media.blob(id);
     const buf = await ac().decodeAudioData(await blob.arrayBuffer());
     decoded.set(id, buf);
+    let total = 0;
+    decoded.forEach((b) => { total += bytesOf(b); });
+    for (const [k, b] of decoded) {
+      if (total <= MAX_DECODED || k === id) break;
+      decoded.delete(k);
+      total -= bytesOf(b);
+    }
     return buf;
   }
   AL.decodeMedia = decodeMedia;
@@ -104,10 +120,13 @@
   let gen = 0;        // každé nové hovorenie zruší predchádzajúce
   let current = null; // { gen, stop() }
 
-  function playRecording(id, my) {
+  function playRecording(id, my, text) {
     return new Promise((resolve) => {
       let finished = false;
-      const done = () => { if (finished) return; finished = true; if (current && current.gen === my) current = null; resolve(); };
+      let safety = 0;
+      const done = () => { if (finished) return; finished = true; clearTimeout(safety); if (current && current.gen === my) current = null; resolve(); };
+      // nahrávka sa nedá prehrať vôbec → aspoň syntetický hlas (ak je), nech hra nezostane potichu
+      const fallback = () => { if (my !== gen) return done(); speakText(text, my).then(done); };
       decodeMedia(id).then((buf) => {
         if (my !== gen) return done();
         const c = ac();
@@ -116,14 +135,17 @@
         src.connect(c.destination);
         src.onended = done;
         current = { gen: my, stop: () => { try { src.stop(); } catch (e) { /* nič */ } done(); } };
+        safety = setTimeout(done, buf.duration * 1000 + 1500); // poistka, keby onended neprišlo
         src.start();
       }).catch(() => {
         // formát, ktorý Web Audio nevie dekódovať – skúsime obyčajný prehrávač
         if (my !== gen) return done();
         const a = new Audio(AL.Media.url(id));
         current = { gen: my, stop: () => { a.pause(); done(); } };
-        a.onended = a.onerror = done;
-        a.play().catch(done);
+        a.onended = done;
+        a.onerror = fallback;
+        safety = setTimeout(done, 20000);
+        a.play().catch(fallback);
       });
     });
   }
@@ -151,7 +173,7 @@
     });
   }
 
-  const part = (text, audioId, my) => (audioId && AL.Media.has(audioId) ? playRecording(audioId, my) : speakText(text, my));
+  const part = (text, audioId, my) => (audioId && AL.Media.has(audioId) ? playRecording(audioId, my, text) : speakText(text, my));
 
   AL.Speech = {
     supported: !!synth,
@@ -385,6 +407,8 @@
           run.nodes.push(src);
           env(0.4);
         } catch (e) {
+          // dieťa už mohlo stlačiť „Vypnúť" – potom nič nespúšťať
+          if (!this.playing || this.run !== run) return;
           console.warn('Nahrávku sa nepodarilo prehrať, použije sa syntetický zvuk', e);
           this.startSynth(c, envGain, env, run);
         }

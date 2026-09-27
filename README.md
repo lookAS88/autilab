@@ -59,7 +59,10 @@ Na obrazovke sú 2 až 6 obrázkov a dieťa počuje názov jedného z nich, nahr
 
 - **Správne:** obrázok sa plynulo zväčší na celú obrazovku a zaznie „Správne, pes" alebo „Správne, to je pes".
 - **Nesprávne:** zaznie „Nesprávne", zadanie sa zopakuje a obrázky sa premiešajú.
-- Správny obrázok je zakaždým na inom, náhodnom mieste. Po chybe sa vždy presunie inam a medzi úlohami nikdy nie je dvakrát po sebe na tom istom mieste.
+- Správny obrázok je na náhodnom mieste a po chybe sa vždy presunie inam.
+  - Pri 3 a viac obrázkoch nie je v ďalšej úlohe tam, kde bol naposledy.
+  - Pri 2 obrázkoch je nanajvýš dvakrát po sebe na tej istej strane. Prísne striedanie vľavo/vpravo by dieťa ľahko uhádlo aj bez počúvania.
+- Viac fotiek s rovnakým názvom (napr. tri rôzne psy) sa nikdy neukáže naraz. V každej úlohe sa objaví jeden z nich, takže dieťa sa naučí, že „pes" je každý pes.
 
 Nastavenie v Rodičovskej zóne, záložka *Ukáž*:
 

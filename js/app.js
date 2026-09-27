@@ -40,7 +40,10 @@
       console.error(e);
       AL.storageError = true;
       AL.Config.data = AL.defaults();
+      // uložené údaje nesmieme prepísať predvolenými – nič neukladať, kým úložisko nefunguje
       AL.Config.save = () => {};
+      AL.Config.saveNow = async () => {};
+      AL.Config.log = () => {};
     }
     AL.applySettings();
     if (!stage) return;

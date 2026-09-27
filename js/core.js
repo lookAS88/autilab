@@ -3,7 +3,7 @@
   'use strict';
 
   const AL = (window.AL = window.AL || {});
-  AL.VERSION = '1.1 (2026-09-28)';
+  AL.VERSION = '1.2 (2026-09-28)';
   AL.screens = {};
   AL.modules = {};
 

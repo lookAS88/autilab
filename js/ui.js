@@ -156,15 +156,29 @@
         AL.tile({ item: a.item, label: a.label, onClick: a.onClick, cls: 'small' }))) : null);
   };
 
-  /** Obrazovka zostane zapnutá (napr. počas čakania) */
-  AL.keepAwake = async function (scope) {
-    try {
-      if (!navigator.wakeLock) return;
-      let lock = await navigator.wakeLock.request('screen');
-      const again = async () => { if (document.visibilityState === 'visible') { try { lock = await navigator.wakeLock.request('screen'); } catch (e) { /* nič */ } } };
-      scope.on(document, 'visibilitychange', again);
-      scope.add(() => { try { lock && lock.release(); } catch (e) { /* nič */ } });
-    } catch (e) { /* nepodporované */ }
+  /**
+   * Obrazovka zostane zapnutá (napr. počas čakania alebo prehrávania zvuku).
+   * Vráti funkciu, ktorá obrazovku opäť uvoľní; pri odchode z obrazovky sa uvoľní automaticky.
+   */
+  AL.keepAwake = function (scope) {
+    let lock = null;
+    let active = true;
+    const request = async () => {
+      if (!active || !navigator.wakeLock || document.visibilityState !== 'visible') return;
+      try { lock = await navigator.wakeLock.request('screen'); } catch (e) { /* nepodporované / nepovolené */ }
+      if (!active && lock) { try { lock.release(); } catch (e) { /* nič */ } lock = null; }
+    };
+    const onVis = () => request();
+    document.addEventListener('visibilitychange', onVis);
+    const release = () => {
+      if (!active) return;
+      active = false;
+      document.removeEventListener('visibilitychange', onVis);
+      if (lock) { try { lock.release(); } catch (e) { /* nič */ } lock = null; }
+    };
+    request();
+    if (scope) scope.add(release);
+    return release;
   };
 
   /* ---------- Navigácia ---------- */
@@ -206,16 +220,17 @@
   });
 
   /* Android: systémové „Späť" (tlačidlo alebo potiahnutie od okraja obrazovky) by aplikáciu zavrelo.
-     Po každom dotyku si pripravíme „poistný" záznam v histórii – „Späť" ho len spotrebuje a obrazovka ostane.
-     (Prehliadač rešpektuje len záznamy vytvorené po dotyku používateľa, preto ich pridávame pri kliknutí.) */
-  let backGuard = false;
+     Pri dotykoch si udržiavame zásobu až 3 „poistných" záznamov v histórii – každé „Späť" jeden spotrebuje
+     a obrazovka ostane. Hĺbku nesie samotný záznam (history.state), takže sa nemôže rozísť so skutočnosťou.
+     Prehliadač rešpektuje len záznamy vytvorené hneď po dotyku používateľa, preto pridávame pri pointerup/keydown
+     (pointerup je pri dotyku udalosť, ktorá prehliadaču potvrdí aktivitu), nikdy nie v popstate. */
   const armBackGuard = () => {
-    if (backGuard) return;
-    try { history.pushState({ autilab: 1 }, ''); backGuard = true; } catch (e) { /* nič */ }
+    const depth = (history.state && history.state.autilab) || 0;
+    if (depth >= 3) return;
+    try { history.pushState({ autilab: depth + 1 }, ''); } catch (e) { /* nič */ }
   };
-  window.addEventListener('click', armBackGuard, true);
+  window.addEventListener('pointerup', armBackGuard, true);
   window.addEventListener('keydown', armBackGuard, true);
-  window.addEventListener('popstate', () => { backGuard = false; });
 
   /* Inštalácia na plochu (Android Chrome): vlastné tlačidlo v Rodičovskej zóne namiesto vyskakovacieho pásu */
   AL.isInstalled = () => window.matchMedia('(display-mode: fullscreen)').matches || window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;

@@ -9,6 +9,7 @@
 
   const openRoutines = new Set();
   let activeRec = null;
+  let recStarting = false;
 
   /* ---------- Malé stavebné prvky formulára ---------- */
   const icon = (n) => el('span', { html: AL.Icon(n), style: { display: 'inline-flex' } });
@@ -88,13 +89,22 @@
       wrap.innerHTML = '';
       wrap.append(btn(label, iconName, ask, 'danger'));
     };
+    let busy = false; // dvojité ťuknutie na „Áno" nesmie mazať dvakrát
     const ask = () => {
       wrap.innerHTML = '';
-      wrap.append(el('span', null, question), btn('Áno', null, onYes, 'danger'), btn('Nie', null, show));
+      wrap.append(el('span', null, question), btn('Áno', null, async () => {
+        if (busy) return;
+        busy = true;
+        wrap.innerHTML = '';
+        try { await onYes(); } finally { busy = false; }
+      }, 'danger'), btn('Nie', null, show));
     };
     show();
     return wrap;
   }
+
+  /** Odstráni prvok z poľa, len ak tam ešte je (splice s indexOf = -1 by zmazal posledný prvok) */
+  const drop = (arr, x) => { const i = arr.indexOf(x); if (i >= 0) arr.splice(i, 1); };
 
   const move = (arr, i, d) => {
     const j = i + d;
@@ -197,6 +207,9 @@
       return el('label', { class: 'btn', title: 'Otvorí diktafón alebo výber zvukového súboru' }, icon('mic'), labelIdle, input);
     }
     const b = btn(labelIdle, 'mic', async () => {
+      if (recStarting) return; // dvojité ťuknutie počas spúšťania mikrofónu
+      // nahrávanie začaté na tlačidle, ktoré už nie je na obrazovke (prekreslenie, iná záložka) → zahodiť
+      if (activeRec && !activeRec.isConnected) { await AL.Recorder.stop(); activeRec = null; }
       if (activeRec && activeRec !== b) return;
       if (activeRec === b) {
         const blob = await AL.Recorder.stop();
@@ -206,6 +219,7 @@
         if (blob && blob.size > 0) await onBlob(blob);
         return;
       }
+      recStarting = true;
       try {
         await AL.Recorder.start();
         activeRec = b;
@@ -213,6 +227,8 @@
         b.lastChild.textContent = 'Zastaviť nahrávanie';
       } catch (e) {
         flashError(host, 'Mikrofón nie je dostupný. Povoľte ho v prehliadači (ikona zámku/kamery pri adrese).');
+      } finally {
+        recStarting = false;
       }
     });
     return b;
@@ -350,7 +366,7 @@
             btn('Nižšie', 'down', () => { if (move(p.cards, i, 1)) { save(); ctx.rerender(); } }),
             confirmButton('Odstrániť', 'trash', 'Odstrániť kartu?', async () => {
               await removeMedia(c.photo, c.audio);
-              p.cards.splice(p.cards.indexOf(c), 1);
+              drop(p.cards, c);
               save();
               ctx.rerender();
             })))));
@@ -391,7 +407,7 @@
               btn('Nižšie', 'down', () => { if (move(r.steps, si, 1)) { save(); ctx.rerender(); } }),
               r.steps.length > 1 ? confirmButton('Odstrániť krok', 'trash', 'Naozaj?', async () => {
                 await removeMedia(s.photo, s.audio);
-                r.steps.splice(r.steps.indexOf(s), 1);
+                drop(r.steps, s);
                 save();
                 ctx.rerender();
               }) : null)));
@@ -408,7 +424,7 @@
         btn('Nižšie', 'down', () => { if (move(list, ri, 1)) { save(); ctx.rerender(); } }),
         confirmButton('Odstrániť činnosť', 'trash', `Odstrániť „${r.title}"?`, async () => {
           await removeMedia(r.photo, ...r.steps.flatMap((s) => [s.photo, s.audio]));
-          list.splice(list.indexOf(r), 1);
+          drop(list, r);
           save();
           ctx.rerender();
         })));
@@ -513,7 +529,7 @@
             btn('Nižšie', 'down', () => { if (move(s.sounds, i, 1)) { save(); ctx.rerender(); } }),
             confirmButton('Odstrániť', 'trash', 'Odstrániť zvuk?', async () => {
               await removeMedia(snd.photo, snd.audio);
-              s.sounds.splice(s.sounds.indexOf(snd), 1);
+              drop(s.sounds, snd);
               save();
               ctx.rerender();
             })))));
@@ -559,7 +575,7 @@
           el('div', { class: 'pz-field' }, el('span', null, 'Meno vyslovené vaším hlasom (nepovinné)'), voiceEditor(p, () => p.name, card)),
           el('div', { class: 'pz-btns' }, confirmButton('Odstrániť osobu', 'trash', 'Naozaj?', async () => {
             await removeMedia(p.photo, p.audio);
-            f.persons.splice(f.persons.indexOf(p), 1);
+            drop(f.persons, p);
             save();
             ctx.rerender();
           })))));
@@ -576,14 +592,15 @@
 
   /** Z názvu súboru „pes.jpg" urobí „pes"; názvy z fotoaparátu (IMG_1234) vynechá */
   const nameFromFile = (fname) => {
-    const n = fname.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
-    return /^(img|dsc|pxl|photo|image|screenshot|snímka|whatsapp|received)\b/i.test(n) || /^[\d\s]+$/.test(n) ? '' : n;
+    const n = fname.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').replace(/\s*\(\d+\)\s*$/, '').replace(/\s+/g, ' ').trim();
+    const generic = /^(img|dsc|dcim|pxl|mvimg|photo|foto|image|images|obrázok|download|stiahnuť|stiahnuté|unnamed|untitled|screenshot|snímka|whatsapp|received|signal|fb|tmp)(?![a-záäčďéíĺľňóôŕšťúýž])/i;
+    return !n || generic.test(n) || /\d{4,}/.test(n) || /^[\d\s]+$/.test(n) ? '' : n.toLocaleLowerCase('sk');
   };
 
   R.show = function (sec, ctx) {
     const s = D().show;
     const P = AL.SHOW_PHRASES;
-    sec.append(note('Dieťa počuje názov a ťukne na správny obrázok. Pri správnej odpovedi sa obrázok zväčší na celú obrazovku a zopakuje sa názov. Pri nesprávnej zaznie „Nesprávne", zadanie sa zopakuje a obrázky sa premiešajú – správny obrázok je zakaždým na inom, náhodnom mieste.'));
+    sec.append(note('Dieťa počuje názov a ťukne na správny obrázok. Pri správnej odpovedi sa obrázok zväčší na celú obrazovku a zopakuje sa názov. Pri nesprávnej zaznie „Nesprávne", zadanie sa zopakuje a obrázky sa premiešajú – správny obrázok sa presunie inam. Jeho miesto je náhodné, aby sa nedalo uhádnuť. Tip: pridajte viac fotiek s rovnakým názvom (napr. rôzne psy) – dieťa sa naučí, že „pes" je každý pes; spolu na obrazovke sa nikdy neukážu.'));
 
     sec.append(el('h2', null, 'Nastavenia'), el('div', { class: 'pz-card' },
       selectField('Počet obrázkov na obrazovke', s, 'count', [2, 3, 4, 5, 6].map((n) => ({ value: n, label: String(n) }))),
@@ -644,7 +661,7 @@
               btn('Nižšie', 'down', () => { if (move(set.items, ii, 1)) { save(); ctx.rerender(); } }),
               confirmButton('Odstrániť', 'trash', 'Naozaj?', async () => {
                 await removeMedia(it.photo, it.audio);
-                set.items.splice(set.items.indexOf(it), 1);
+                drop(set.items, it);
                 save();
                 ctx.rerender();
               }))));
@@ -679,7 +696,7 @@
         status,
         confirmButton('Odstrániť skupinu', 'trash', `Odstrániť „${set.name}"?`, async () => {
           await removeMedia(...set.items.flatMap((i) => [i.photo, i.audio]));
-          s.sets.splice(s.sets.indexOf(set), 1);
+          drop(s.sets, set);
           save();
           ctx.rerender();
         })));
@@ -792,11 +809,28 @@
       } catch (e) { flashError(sec, 'Súbor nie je platná záloha AutiLab.'); return; }
       importBox.innerHTML = '';
       importBox.append(el('span', null, 'Nahradiť všetky súčasné údaje zálohou?'),
-        btn('Áno, obnoviť', null, async () => {
-          await AL.Media.clearAll();
-          for (const [id, url] of Object.entries(data.media || {})) await AL.DB.put('media', id, await AL.dataURLToBlob(url));
-          await AL.DB.put('kv', 'config', data.config);
-          location.reload();
+        btn('Áno, obnoviť', null, async (ev) => {
+          const b = ev.currentTarget;
+          if (b.disabled) return;
+          b.disabled = true;
+          let writing = false;
+          try {
+            // 1) celú zálohu najprv prevedieme – ak je poškodená, súčasné údaje ostanú nedotknuté
+            const entries = [];
+            for (const [id, url] of Object.entries(data.media || {})) entries.push([id, await AL.dataURLToBlob(url)]);
+            // 2) zapíšeme médiá zo zálohy a nastavenia, 3) až potom zmažeme médiá, ktoré v zálohe nie sú
+            writing = true;
+            for (const [id, blob] of entries) await AL.DB.put('media', id, blob);
+            await AL.DB.put('kv', 'config', data.config);
+            const keep = new Set(entries.map(([id]) => id));
+            for (const id of await AL.DB.keys('media')) if (!keep.has(id)) await AL.DB.del('media', id);
+            location.reload();
+          } catch (e) {
+            b.disabled = false;
+            flashError(sec, writing
+              ? 'Obnovenie sa nedokončilo (málo miesta v zariadení?). Skúste to znova – vaše fotky a nahrávky zatiaľ nič nezmazalo.'
+              : 'Súbor zálohy je poškodený alebo neúplný. Vaše súčasné údaje zostali nezmenené.');
+          }
         }, 'danger'),
         btn('Zrušiť', null, () => { importBox.innerHTML = ''; }));
     });
@@ -836,6 +870,9 @@
         const y = window.scrollY;
         [...tabs.children].forEach((b) => b.classList.toggle('on', b.dataset.tab === id));
         pasteTarget = null;
+        // nedokončené nahrávanie zahodíme, inak by mikrofón bežal ďalej a tlačidlá by nereagovali
+        if (AL.Recorder.active) AL.Recorder.stop();
+        activeRec = null;
         body.innerHTML = '';
         R[id](body, ctx);
         window.scrollTo(0, keepScroll ? y : 0);

@@ -11,10 +11,13 @@
 
   // obrázok bez názvu aj bez nahrávky by dieťa nemalo ako nájsť – vynecháme ho
   const playable = (set) => set.items.filter((i) => (i.name || '').trim() || i.audio);
+  // viac fotiek s rovnakým názvom (napr. tri rôzne psy) je jeden pojem – nikdy nesmú byť naraz na obrazovke
+  const keyOf = (i) => (i.name || '').trim().toLocaleLowerCase('sk') || '#' + i.id;
+  const distinct = (items) => new Set(items.map(keyOf)).size;
   const usableSets = () => AL.Config.data.show.sets
     .map((s) => ({ id: s.id, name: s.name, items: playable(s) }))
-    .filter((s) => s.items.length >= 2);
-  const maxCount = (set) => Math.min(6, set.items.length);
+    .filter((s) => distinct(s.items) >= 2);
+  const maxCount = (set) => Math.min(6, distinct(set.items));
 
   const ph = (cfg, k) => ({ text: PHRASES[k], audio: cfg.phrases[k] });
   const nm = (item) => ({ text: item.name, audio: item.audio });
@@ -109,19 +112,49 @@
     const nextTarget = () => {
       if (!queue.length) {
         queue = AL.shuffle(items);
-        if (queue.length > 1 && queue[0] === lastTarget) queue.push(queue.shift());
+        if (queue.length > 1 && lastTarget && keyOf(queue[0]) === keyOf(lastTarget)) queue.push(queue.shift());
       }
       return queue.shift();
     };
 
-    // správny obrázok vždy na inej (náhodnej) pozícii než naposledy
-    const arrange = () => {
-      const positions = [...Array(options.length).keys()].filter((p) => p !== lastPos);
-      const pos = AL.sample(positions.length ? positions : [0]);
+    /* Pozícia správneho obrázka:
+       - po chybe sa vždy presunie inam (obrázky sa premiešajú),
+       - v novej úlohe pri 3+ obrázkoch nikdy nie je tam, kde bol naposledy,
+       - pri 2 obrázkoch je náhodná, ale najviac 2× po sebe na tej istej strane
+         (prísne striedanie vľavo/vpravo by sa dalo uhádnuť bez počúvania). */
+    const finals = []; // pozície, na ktorých dieťa správny obrázok našlo
+    const place = (pos) => {
       const others = AL.shuffle(options.filter((o) => o !== target));
       others.splice(pos, 0, target);
       options = others;
       lastPos = pos;
+    };
+    const arrangeNew = () => {
+      const n = options.length;
+      let pos;
+      if (n >= 3) pos = AL.sample([...Array(n).keys()].filter((p) => p !== lastPos));
+      else {
+        pos = Math.random() < 0.5 ? 0 : 1;
+        const k = finals.length;
+        if (k >= 2 && finals[k - 1] === pos && finals[k - 2] === pos) pos = 1 - pos;
+      }
+      place(pos);
+    };
+    const arrangeAfterMistake = () => {
+      const positions = [...Array(options.length).keys()].filter((p) => p !== lastPos);
+      place(AL.sample(positions.length ? positions : [0]));
+    };
+
+    // „nesprávne" obrázky: len iné pojmy (iný názov), z každého jeden náhodný obrázok
+    const pickDistractors = () => {
+      const groups = new Map();
+      items.forEach((i) => {
+        const k = keyOf(i);
+        if (k === keyOf(target)) return;
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push(i);
+      });
+      return AL.shuffle([...groups.values()]).slice(0, count - 1).map((g) => AL.sample(g));
     };
 
     // najväčšie štvorcové dlaždice, ktoré sa zmestia (na výšku aj na šírku, tablet aj PC)
@@ -165,8 +198,8 @@
       target = nextTarget();
       lastTarget = target;
       errors = 0;
-      options = [target, ...AL.shuffle(items.filter((i) => i !== target)).slice(0, count - 1)];
-      arrange();
+      options = [target, ...pickDistractors()];
+      arrangeNew();
       renderGrid();
       // bez nahrávky a bez slovenského hlasu aspoň text (pre dospelého / čítajúce dieťa)
       qText.textContent = !target.audio && !AL.Speech.canSpeak() ? promptText(cfg, target) : '';
@@ -182,6 +215,7 @@
 
       if (o === target) {
         if (errors === 0) firstTry++;
+        finals.push(lastPos);
         await celebrate(t, o);
         if (scope.dead) return;
         trial++;
@@ -197,7 +231,7 @@
       grid.classList.add('shuffling');
       await AL.sleep(AL.Config.s.reduceMotion ? 20 : 300);
       if (scope.dead) return;
-      arrange();
+      arrangeAfterMistake();
       renderGrid();
       grid.classList.remove('shuffling');
       if (cfg.hintAfter2 && errors >= 2) AL.hint(nodes.get(target));
