@@ -1,0 +1,7 @@
+# nástroje na vývoj – na web nepatria
+.claude/
+*.log
+Thumbs.db
+desktop.ini
+# zálohy s osobnými údajmi (fotky, hlas) nikdy nenahrávať
+autilab-zaloha-*.json

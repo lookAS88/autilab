@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#F4F1EA">
+  <!-- tablet: po „Pridať na plochu" sa otvorí na celú obrazovku -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="AutiLab">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="description" content="AutiLab – pokojná aplikácia pre deti s PAS: komunikácia obrázkami, kroky rutín, vizuálny časovač, senzorický trenažér a rozpoznávanie blízkych osôb.">
+  <title>AutiLab</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%237DA2C1'/%3E%3Cpath d='M28 70 Q50 28 72 70' fill='none' stroke='%23fff' stroke-width='10' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='38' r='9' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <main id="stage" aria-live="polite"></main>
+
+  <noscript>Aplikácia potrebuje zapnutý JavaScript.</noscript>
+
+  <!-- Klasické skripty (nie ES moduly), aby aplikácia fungovala aj po otvorení súboru dvojklikom (file://) -->
+  <script src="js/core.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/modules/pecs.js"></script>
+  <script src="js/modules/routines.js"></script>
+  <script src="js/modules/timer.js"></script>
+  <script src="js/modules/sensory.js"></script>
+  <script src="js/modules/faces.js"></script>
+  <script src="js/modules/show.js"></script>
+  <script src="js/parent.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
