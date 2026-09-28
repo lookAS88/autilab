@@ -28,7 +28,8 @@ Obe tlačidlá pre dospelých reagujú iba na podržanie, takže ich dieťa krá
 4. **Tváre.** Nahrajte fotografie blízkych osôb a označte, kto pomôže v akej situácii.
 5. **Zvuky.** Nahrajte skutočné zvuky z vášho okolia, napríklad váš vysávač alebo zvonček pri vašich dverách.
 6. **Ukáž.** Pridajte skupiny obrázkov, pri každom nahrajte názov vlastným hlasom a nahrajte aj spoločné slová („Kde je", „Správne", „Nesprávne").
-7. **Všeobecné → Aktivity.** Nechajte zapnuté iba aktivity, ktoré práve precvičujete. Ak necháte zapnutú jedinú, dieťa uvidí iba ju.
+7. **Kartotéka.** Upravte kategórie (Jedlo, Aktivity, Hračky, Miesta, Ľudia alebo vlastné), nafoťte skutočné veci z domu a pri každom obrázku nahrajte jeho názov.
+8. **Všeobecné → Aktivity.** Nechajte zapnuté iba aktivity, ktoré práve precvičujete. Ak necháte zapnutú jedinú, dieťa uvidí iba ju.
 
 ## Aktivity
 
@@ -82,6 +83,23 @@ Ako pridať obrázky:
 
 V *Prehľade* uvidíte, koľko obrázkov dieťa našlo na prvý pokus a pri ktorých názvoch sa najčastejšie mýli.
 
+### 7. Kartotéka (výber činností a vecí)
+Kartotéka je ako kniha obrázkov, v ktorej dieťa samo listuje a vyberá si, čo chce: jedlo, činnosť, hračku, miesto alebo osobu.
+
+- **Jedna kategória = jedna strana.** Hore je názov kategórie veľkými tlačenými písmenami, napr. **JEDLO**, pod ním prehľadná mriežka obrázkov. Ak má kategória viac obrázkov, ako sa zmestí na stranu, pokračuje na ďalšej strane. Obrázky majú na každej strane rovnakú veľkosť a rovnaké miesta.
+- **Listovanie:** veľké šípky vľavo a vpravo, žiadne potiahnutie prstom. Za poslednou stranou kategórie nasleduje ďalšia kategória.
+- **Prepínanie kategórií:** rad obrázkov kategórií dole. Ťuknutím sa dieťa presunie priamo na danú kategóriu a aplikácia povie jej názov (dá sa vypnúť). Ťuknutím na veľký nadpis zaznie názov kategórie znova.
+- **Výber:** dieťa ťukne na obrázok, ten sa plynulo zväčší na celú obrazovku a zaznie jeho názov vaším hlasom. Ďalším dotykom sa obrázok zmenší späť, alebo sa po nastavenom čase zavrie sám.
+
+Nastavenie v Rodičovskej zóne, záložka *Kartotéka*:
+
+- **Počet obrázkov na strane** (4, 6, 8, 9 alebo 12), názvy pod obrázkami aj pod zväčšeným obrázkom, vyslovenie názvu kategórie pri prechode, čas zatvorenia zväčšeného obrázka.
+- **Kategórie:** pridať, premenovať, zoradiť, skryť alebo odstrániť. Každá kategória má vlastný obrázok na prepínači a názov nahratý vaším hlasom.
+- **Zásobník obrázkov:** všetky obrázky kartotéky sú na jednom mieste. Do kategórie ich pridáte tlačidlom *Pridať z uložených obrázkov*, kde nájdete aj obrázky, ktoré už máte v záložkách *Ukáž*, *Tváre* a *Komunikácia* (skopírujú sa aj s nahratým názvom, pri kartách Komunikácie len obrázok a názov). Jeden obrázok môže byť vo viacerých kategóriách. *Odobrať z kategórie* ho vyberie len z danej kategórie, *Vymazať natrvalo* ho vymaže všade.
+- **Nedokončené obrázky dieťa nevidí.** Obrázok sa dieťaťu ukáže, až keď má fotku (alebo ilustráciu) a názov alebo nahrávku. Rodičovská zóna pri ňom napíše, čo chýba. Nová kategória sa na prepínači ukáže vlastným obrázkom, inak prvým obrázkom zo svojho zoznamu.
+
+V *Prehľade* uvidíte, ktoré obrázky si dieťa vyberá najčastejšie.
+
 ## Slovenský hlas
 
 Aplikácia hovorí hlasom, ktorý poskytuje systém alebo prehliadač. Ak slovenský hlas chýba, aplikácia vety nevyslovuje cudzím, napr. anglickým hlasom, lebo by to dieťa mýlilo. Prehrá iba nahrávky rodiča. Riešenia:
@@ -127,7 +145,7 @@ Ak už máte obsah pripravený v počítači:
 Súbor zálohy obsahuje vaše fotky a nahrávky, preto ho nikam nezverejňujte. Git ho do repozitára nikdy nepridá.
 
 ### Aktualizácie
-Novú verziu stačí odoslať do repozitára. Tablet si ju stiahne sám pri najbližšom spustení s internetom, niekedy je potrebné aplikáciu otvoriť dvakrát. Vaše údaje zostanú zachované. Verziu vidíte v *Rodičovská zóna → Všeobecné → Tablet*.
+Novú verziu stačí odoslať do repozitára. Tablet si ju stiahne sám pri najbližšom spustení s internetom, niekedy je potrebné aplikáciu otvoriť dvakrát. Vaše údaje zostanú zachované. Nová aktivita sa po aktualizácii zapne sama, len ak ste mali zapnuté všetky aktivity. Ak ste dieťaťu nechali len niektoré, úvodná obrazovka sa nezmení a novú aktivitu si zapnete v *Všeobecné → Aktivity*. Verziu vidíte v *Rodičovská zóna → Všeobecné → Tablet*.
 
 ### Prečo nestačí aplikáciu do tabletu len skopírovať
 Chrome v Androide otvorí skopírovaný súbor `index.html` v obmedzenom režime. Nenačíta ostatné súbory aplikácie (skripty, štýly), nedovolí stránke trvalo ukladať fotky a nahrávky a nepovolí mikrofón. Preto sa aplikácia inštaluje z https adresy.
@@ -172,6 +190,6 @@ Obmedzenia:
   - `js/art.js`: knižnica ilustrácií (SVG)
   - `js/audio.js`: pochvala, reč, senzorické zvuky, nahrávanie
   - `js/ui.js`: dlaždice, ťahanie, tlačidlá pre dospelých, prechody medzi obrazovkami
-  - `js/modules/*.js`: šesť aktivít (`show.js` = Ukáž)
+  - `js/modules/*.js`: sedem aktivít (`show.js` = Ukáž, `cards.js` = Kartotéka)
   - `js/parent.js`: Rodičovská zóna
   - `sw.js`, `manifest.webmanifest`: offline režim a inštalácia pri spustení cez http

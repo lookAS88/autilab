@@ -85,6 +85,7 @@ button { font: inherit; color: inherit; }
   overflow: hidden;
   background: var(--surface);
   display: grid;
+  grid-template: 100% / 100%; /* bez toho by fotka na výšku pretiekla štvorec a orezala sa zospodu */
   place-items: center;
 }
 .pic img, .pic svg {
@@ -193,6 +194,43 @@ button { font: inherit; color: inherit; }
 .home-grid .pic { max-width: min(250px, 23vh); }
 .home-grid.count-1 .tile { flex-basis: clamp(240px, 40vw, 420px); }
 .home-grid.count-1 .pic, .home-grid.count-2 .pic { max-width: min(320px, 40vh); }
+/* Veľkosť obrázka sa pri viacerých riadkoch odvodí aj od výšky okna (okraje obrazovky, nadpis, riadky dlaždíc),
+   aby sa všetko zmestilo bez posúvania (napr. notebook 1366×768). */
+.home-grid {
+  --h-vh: 100vh;
+  --h-avail: calc(var(--h-vh) - 2 * var(--pad) - 56px - 1.35 * clamp(1.6rem, 3.4vw, 2.6rem) - var(--gap) - 8px - var(--hint, 0px));
+  --h-extra: calc(2 * clamp(12px, 1.6vw, 22px) + 18px + 1.2 * clamp(1.15rem, 2.2vw, 1.7rem));
+}
+@supports (height: 100dvh) { .home-grid { --h-vh: 100dvh; } }
+/* 4–6 aktivít = 2 riadky */
+.home-grid.count-4 .pic, .home-grid.count-5 .pic, .home-grid.count-6 .pic {
+  max-width: min(250px, 23vh, max(56px, calc((var(--h-avail) - var(--gap)) / 2 - var(--h-extra))));
+}
+/* úzky telefón na výšku: 2 stĺpce (inak by dlaždice spadli po jednej pod seba a obrazovka by sa posúvala) */
+@media (orientation: portrait) and (max-width: 599px) {
+  .home-grid.count-3 .tile, .home-grid.count-4 .tile, .home-grid.count-5 .tile, .home-grid.count-6 .tile { flex-basis: calc((100% - var(--gap)) / 2); }
+  .home-grid.count-3 .pic, .home-grid.count-4 .pic { max-width: min(250px, max(56px, calc((var(--h-avail) - var(--gap)) / 2 - var(--h-extra)))); }
+  .home-grid.count-5 .pic, .home-grid.count-6 .pic { max-width: min(250px, max(48px, calc((var(--h-avail) - 2 * var(--gap)) / 3 - var(--h-extra)))); }
+}
+/* poznámka pre dospelých dole (chýba slovenský hlas) – nech neleží cez posledný riadok dlaždíc */
+.screen-home.has-hint { --hint: 22px; padding-bottom: calc(var(--pad) + var(--hint)); }
+@media (max-width: 599px) { .screen-home.has-hint { --hint: 50px; } }
+/* 7 aktivít: na šírku 4 + 3, na výšku 3 + 3 + 1 (telefón 2 stĺpce) */
+.home-grid.count-7 .tile { flex: 0 1 calc((100% - 3 * var(--gap)) / 4); max-width: 300px; }
+.home-grid.count-7 .pic { max-width: min(250px, calc((var(--h-avail) - var(--gap)) / 2 - var(--h-extra))); }
+@media (orientation: portrait) {
+  .home-grid.count-7 .tile { flex-basis: calc((100% - 2 * var(--gap)) / 3); }
+  .home-grid.count-7 .pic { max-width: min(250px, calc((var(--h-avail) - 2 * var(--gap)) / 3 - var(--h-extra))); }
+}
+@media (orientation: portrait) and (max-width: 599px) {
+  .home-grid.count-7 .tile { flex-basis: calc((100% - var(--gap)) / 2); }
+  .home-grid.count-7 .pic { max-width: min(250px, calc((var(--h-avail) - 3 * var(--gap) - 12px) / 4 - var(--h-extra))); }
+}
+/* kratší telefón (napr. 360×640): 3 stĺpce vyjdú väčšie ako 4 riadky po dvoch */
+@media (orientation: portrait) and (max-width: 599px) and (min-aspect-ratio: 1/2) {
+  .home-grid.count-7 .tile { flex-basis: calc((100% - 2 * var(--gap)) / 3); }
+  .home-grid.count-7 .pic { max-width: min(250px, calc((var(--h-avail) - 2 * var(--gap) - 12px) / 3 - var(--h-extra))); }
+}
 
 /* poznámka pre dospelých – mimo rozloženia, aby úvodná obrazovka nikdy neposúvala */
 .adult-hint { position: fixed; left: 16px; right: 16px; bottom: 6px; margin: 0; text-align: center; font-size: 12px; line-height: 1.3; color: var(--ink-faint); pointer-events: none; }
@@ -569,6 +607,116 @@ button { font: inherit; color: inherit; }
 .show-zoom.in .zoom-name { opacity: 1; }
 .show-zoom.out { opacity: 0; transition: opacity 400ms var(--ease); }
 
+/* ---------- 7. Kartotéka ---------- */
+/* celá obrazovka presne na výšku okna – rozmery políčok počíta cards.js, aby sa nič neposúvalo */
+.cards-screen {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  padding: 12px var(--pad) clamp(10px, 2vh, 22px);
+  gap: var(--cg, 14px);
+}
+.cards-title { margin: 0 max(0px, calc(84px - var(--pad))); height: 60px; flex: none; display: flex; justify-content: center; min-width: 0; }
+.cards-title-btn {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0 .1em;
+  max-width: 100%;
+  font-weight: 800;
+  letter-spacing: .12em;
+  line-height: 60px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
+  cursor: pointer;
+}
+.cards-title-btn:focus-visible, .cards-arrow:focus-visible, .cards-cat:focus-visible, .cards-tile:focus-visible { outline: 4px solid var(--blue); outline-offset: 3px; }
+.cards-main { flex: 1; min-height: 0; display: grid; justify-content: center; }
+.cards-stage { grid-area: stage; min-width: 0; min-height: 0; display: grid; place-items: center; }
+.cards-grid, .cards-title-btn, .cards-dots { transition: opacity 250ms var(--ease); }
+.cards-swap .cards-grid, .cards-swap .cards-title-btn, .cards-swap .cards-dots { opacity: 0; }
+.cards-grid { display: grid; justify-content: center; align-content: center; }
+.cards-tile {
+  appearance: none;
+  width: 100%;
+  height: 100%;
+  padding: var(--tp, 8px);
+  border: 3px solid var(--line);
+  border-radius: clamp(14px, calc(var(--q, 200px) * .1), 28px);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  min-width: 0;
+  transition: transform 200ms var(--ease);
+}
+.cards-tile:active { transform: scale(.98); }
+.cards-tile.empty { visibility: hidden; }
+.cards-tile .pic { width: var(--q); height: var(--q); flex: none; border-radius: clamp(10px, calc(var(--q, 200px) * .07), 20px); }
+.cards-tile .pic img, .cards-zoom .pic img { object-fit: contain; }
+.cards-name { width: 100%; font-size: var(--lf); font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cards-grid.no-names .cards-name { display: none; }
+.cards-arrow {
+  align-self: center;
+  justify-self: center;
+  width: var(--arrow, 80px);
+  height: var(--arrow, 80px);
+  border-radius: 50%;
+  border: 4px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-soft);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 200ms var(--ease);
+}
+.cards-arrow:active { transform: scale(.96); }
+.cards-arrow svg { width: 52%; height: 52%; }
+.cards-arrow.prev { grid-area: prev; }
+.cards-arrow.next { grid-area: next; }
+.cards-dots { grid-area: dots; display: flex; gap: 10px; justify-content: center; align-items: center; }
+.cards-dots span { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+.cards-dots span.on { background: var(--blue); }
+.cards-bar { flex: none; display: flex; flex-wrap: wrap; justify-content: center; width: 100%; margin: 0 auto; }
+.cards-cat {
+  appearance: none;
+  width: var(--cbw, 120px);
+  padding: 5px 5px 4px;
+  border: 3px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  min-width: 0;
+  transition: border-color var(--t-med) var(--ease), background var(--t-med) var(--ease);
+}
+.cards-cat .pic { width: var(--cbp, 64px); height: var(--cbp, 64px); flex: none; border-radius: 10px; background: transparent; }
+.cards-cat .pic img { object-fit: cover; }
+.cards-cat-name { width: 100%; font-size: var(--cbf, 14px); font-weight: 700; letter-spacing: .06em; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-soft); }
+.cards-bar.tight .cards-cat-name { letter-spacing: .01em; }
+.cards-cat.on { border-color: var(--blue); background: #F5F9FC; }
+.cards-cat.on .cards-cat-name { color: var(--ink); }
+/* zväčšený obrázok – pod tlačidlom domov (z-index 50), aby ostalo vždy dostupné */
+.cards-zoom { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; cursor: pointer; }
+.cards-zoom-bg { position: absolute; inset: 0; background: var(--bg); opacity: 0; transition: opacity 420ms var(--ease); }
+.cards-zoom.in .cards-zoom-bg { opacity: 1; }
+.cards-zoom-body { position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.cards-zoom-pic { border: 6px solid var(--blue); border-radius: 36px; overflow: hidden; background: var(--surface); transition: transform 480ms var(--ease); }
+.cards-zoom-pic .pic { border-radius: 0; height: 100%; }
+.cards-zoom-name { font-weight: 700; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; opacity: 0; transition: opacity 400ms var(--ease) 200ms; }
+.cards-zoom.in .cards-zoom-name { opacity: 1; }
+.cards-zoom.out .cards-zoom-name { opacity: 0; transition-delay: 0ms; transition-duration: 200ms; }
+.cards-zoom.out { pointer-events: none; } /* zatvárajúci sa obrázok už neprekáža ťuknutiu na ďalší */
+
 /* ---------- Rodičovská zóna ---------- */
 body.parent-mode { user-select: text; -webkit-user-select: text; }
 .pz { max-width: 1100px; margin: 0 auto; padding: 20px 20px 80px; }
@@ -658,6 +806,39 @@ details.pz-card > summary .pic { width: 56px; border-radius: 10px; border: 1px s
 details.pz-card > summary::after { content: "▾"; margin-left: auto; color: var(--ink-faint); }
 details.pz-card[open] > summary::after { content: "▴"; }
 
+/* ---------- Rodičovská zóna – Kartotéka ---------- */
+.pz-hint { font-size: .85rem; color: var(--ink-faint); }
+.pz-kat-cover { display: flex; flex-direction: column; gap: 6px; width: 200px; flex: none; }
+.pz-kat-sub { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pz-kat-actions { border-top: 1px solid var(--line); padding-top: 12px; }
+.pz .btn.on { background: var(--blue-soft); border-color: var(--blue); }
+.pz-picker { display: flex; flex-direction: column; gap: 10px; padding: 12px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 12px; }
+.pz-pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.pz-pick {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 5px;
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: .85rem;
+  color: var(--ink);
+  text-align: center;
+}
+.pz-pick .pic { border-radius: 8px; }
+.pz-pick-name { overflow-wrap: anywhere; line-height: 1.2; }
+.pz-pick-chk { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: var(--blue); color: #fff; display: none; place-items: center; }
+.pz-pick-chk svg { width: 16px; height: 16px; stroke-width: 3; }
+.pz-pick.on { border-color: var(--blue); background: var(--blue-soft); }
+.pz-pick.on .pz-pick-chk { display: grid; }
+.pz-pick:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.pz-pick-cell { display: inline-flex; align-items: center; gap: 10px; }
+.pz-pick-cell .pic { width: 40px; flex: none; border-radius: 8px; border: 1px solid var(--line); }
+
 /* ---------- Úzke obrazovky ---------- */
 @media (max-width: 760px) {
   .routine-steps { flex-direction: column; }
@@ -669,7 +850,20 @@ details.pz-card[open] > summary::after { content: "▴"; }
 }
 @media (max-height: 640px) and (min-width: 761px) {
   .screen { padding-top: calc(var(--pad) + 40px); }
+  .cards-screen { padding-top: 12px; } /* kartotéka má nadpis vedľa tlačidla domov – každý pixel výšky patrí obrázkom */
   .pecs-slot { width: clamp(130px, 20vw, 240px); }
+}
+/* tablet / PC na šírku: karty Chcem vždy v jednom riadku (4 karty by sa inak zalomili a obrazovka by sa posúvala) */
+@media (orientation: landscape) and (min-width: 761px) {
+  .pecs-cards { flex-wrap: nowrap; }
+  .pecs-slot { flex: 0 1 auto; min-width: 0; }
+}
+/* nízka obrazovka na šírku (telefón): všetky aktivity úvodnej obrazovky v jednom riadku, veľkosť podľa výšky */
+@media (orientation: landscape) and (max-height: 500px) {
+  /* mriežka len taká vysoká ako dlaždice (vycentrovaná) → všetky dlaždice rovnako vysoké, aj keď sa názov zalomí */
+  .home-grid { flex-wrap: nowrap; flex: 0 0 auto; margin-block: auto; align-items: stretch; }
+  .home-grid .tile, .home-grid.count-7 .tile { flex: 1 1 0; min-width: 0; max-width: 240px; }
+  .home-grid[class*="count-"] .pic { max-width: min(250px, max(40px, calc(var(--h-avail) - var(--h-extra)))); }
 }
 
 /* ---------- Obmedzený pohyb ---------- */

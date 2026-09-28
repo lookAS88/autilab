@@ -11,6 +11,19 @@
   let activeRec = null;
   let recStarting = false;
 
+  /* Prekreslenie po dlhšej práci na pozadí (napr. ukladanie viacerých fotiek) nesmie prerušiť rozbehnuté
+     nahrávanie hlasu – počká, kým rodič nahrávanie dokončí. */
+  let pendingRerender = null;
+  let liveCtx = null; // kontext práve otvorenej Rodičovskej zóny
+  function laterRerender(fn) {
+    if (activeRec || recStarting || AL.Recorder.active) pendingRerender = fn; else fn();
+  }
+  function flushRerender() {
+    const fn = pendingRerender;
+    pendingRerender = null;
+    if (fn) fn();
+  }
+
   /* ---------- Malé stavebné prvky formulára ---------- */
   const icon = (n) => el('span', { html: AL.Icon(n), style: { display: 'inline-flex' } });
 
@@ -216,7 +229,7 @@
         activeRec = null;
         b.classList.remove('recording');
         b.lastChild.textContent = labelIdle;
-        if (blob && blob.size > 0) await onBlob(blob);
+        try { if (blob && blob.size > 0) await onBlob(blob); } finally { flushRerender(); }
         return;
       }
       recStarting = true;
@@ -229,6 +242,7 @@
         flashError(host, 'Mikrofón nie je dostupný. Povoľte ho v prehliadači (ikona zámku/kamery pri adrese).');
       } finally {
         recStarting = false;
+        if (!activeRec) flushRerender(); // nahrávanie sa nerozbehlo – odložené prekreslenie hneď
       }
     });
     return b;
@@ -272,6 +286,7 @@
     { id: 'sensory', label: 'Zvuky' },
     { id: 'faces', label: 'Tváre' },
     { id: 'show', label: 'Ukáž' },
+    { id: 'cards', label: 'Kartotéka' },
     { id: 'progress', label: 'Prehľad' },
     { id: 'backup', label: 'Záloha' },
   ];
@@ -711,6 +726,315 @@
     }, 'primary')));
   };
 
+  /* ---------- Kartotéka: kategórie odkazujú (cez id) na obrázky v spoločnom zásobníku ---------- */
+  const openCats = new Set(); // otvorené karty kategórií (a 'lib' = zásobník) ostanú otvorené aj po prekreslení
+  let picker = null;          // { cat, sel: ['lib:id' | 'src:id', …] } – práve otvorený výber „Pridať z uložených obrázkov"
+  let pickBusy = false;
+  const upper = (s) => (s || '').toLocaleUpperCase('sk');
+  const catLabel = (c) => upper(c.name).trim() || '(BEZ NÁZVU)';
+  const nObr = (n) => `${n} ${n === 1 ? 'obrázok' : n >= 2 && n <= 4 ? 'obrázky' : 'obrázkov'}`;
+  const hint = (text) => el('div', { class: 'pz-hint' }, text);
+  const meta = (text) => el('span', { style: { color: 'var(--ink-faint)', fontWeight: 400, fontSize: '.9rem' } }, text);
+  const newCardItem = () => ({ id: AL.uid('k'), name: '', art: 'placeholder', photo: null, audio: null });
+
+  /** Vlastná kópia média – zdieľané id by po zmazaní v inej aktivite zmizlo aj v kartotéke */
+  async function copyMedia(id, prefix) {
+    if (!id) return null;
+    try { const b = await AL.Media.blob(id); return b ? await AL.Media.add(b, prefix) : null; } catch (e) { return null; }
+  }
+
+  /** Obrázky z iných aktivít, ktoré ešte nie sú skopírované v zásobníku */
+  function importSources() {
+    const done = new Set(D().cards.library.map((l) => l.src).filter(Boolean));
+    const out = [];
+    const add = (from, caption, name, withAudio) => {
+      name = (name || '').trim();
+      if (name && !done.has(from.id)) out.push({ src: from.id, caption, name, art: from.art, photo: from.photo, from, withAudio });
+    };
+    D().show.sets.forEach((st) => st.items.forEach((it) => add(it, 'Ukáž – ' + st.name, it.name, true)));
+    D().faces.persons.forEach((p) => add(p, 'Tváre', p.name, true));
+    D().pecs.cards.forEach((c) => add(c, 'Komunikácia (Chcem)', c.label, false)); // hlas pri Chcem je celá veta („Chcem piť.") – nehodí sa
+    return out;
+  }
+
+  /** Lenivo vykreslená karta – obsah sa postaví až pri prvom otvorení (zásobník môže mať stovku obrázkov) */
+  function lazyCard(key, summary, build) {
+    const d = el('details', { class: 'pz-card' }, summary);
+    let built = false;
+    const ensure = () => { if (!built && d.open) { built = true; build(d); } };
+    d.addEventListener('toggle', () => { if (d.open) openCats.add(key); else openCats.delete(key); ensure(); });
+    if (openCats.has(key)) { d.open = true; ensure(); }
+    return d;
+  }
+
+  function itemRow(it, extra, rerender) {
+    const row = el('div', { class: 'pz-step', dataset: { kid: it.id } });
+    row.append(imageEditor(it, { host: row, compact: true, onChange: rerender }),
+      el('div', { class: 'pz-fields' },
+        textField('Názov (čo dieťa počuje)', it, 'name', { placeholder: 'napr. palacinky' }),
+        voiceEditor(it, () => it.name, row),
+        extra));
+    return row;
+  }
+
+  /** „Pridať viac fotiek naraz": z každej fotky nová položka zásobníka (onItem ju môže zaradiť aj do kategórie).
+      Stav je spoločný pre celú kartotéku – aj po prekreslení je vidno, že sa ešte ukladá, a druhé ukladanie nezačne. */
+  let multiBusy = false;
+  let multiMsg = '';
+  function multiPhotos(status, onItem, after) {
+    const input = el('input', { type: 'file', accept: 'image/*', multiple: true });
+    status.textContent = multiMsg;
+    input.addEventListener('change', async () => {
+      const files = [...(input.files || [])];
+      input.value = '';
+      if (!files.length) return;
+      if (multiBusy) { status.textContent = multiMsg + ' Počkajte, kým sa uložia predchádzajúce fotky.'; return; }
+      multiBusy = true;
+      let done = 0;
+      try {
+        for (const f of files) {
+          multiMsg = `Ukladám ${++done} / ${files.length}…`;
+          document.querySelectorAll('.pz-multi-status').forEach((s) => { s.textContent = multiMsg; });
+          if (f.type && !f.type.startsWith('image/')) continue;
+          const it = newCardItem();
+          it.name = nameFromFile(f.name);
+          try { await storePhoto(it, f); } catch (e) { continue; } // nie je obrázok – preskočiť
+          D().cards.library.push(it);
+          if (onItem) onItem(it);
+          save();
+        }
+      } finally {
+        multiBusy = false;
+        multiMsg = '';
+        document.querySelectorAll('.pz-multi-status').forEach((s) => { s.textContent = ''; });
+      }
+      save();
+      after();
+    });
+    return el('label', { class: 'btn' }, icon('upload'), 'Pridať viac fotiek naraz', input);
+  }
+
+  function pickerPanel(cat, rerender) {
+    const K = D().cards;
+    const st = picker;
+    const inCat = new Set(cat.items);
+    const free = K.library.filter((l) => !inCat.has(l.id));
+    const srcs = importSources();
+    const valid = new Set(free.map((l) => 'lib:' + l.id).concat(srcs.map((s) => 'src:' + s.src)));
+    st.sel = st.sel.filter((k) => valid.has(k));
+    const addBtn = btn(`Pridať vybrané (${st.sel.length})`, 'plus', null, 'primary');
+    const refresh = () => { addBtn.lastChild.textContent = `Pridať vybrané (${st.sel.length})`; addBtn.disabled = !st.sel.length || pickBusy; };
+    const tile = (key, o) => {
+      const b = el('button', { type: 'button', class: 'pz-pick', dataset: { key } },
+        AL.picture(o), el('span', { class: 'pz-pick-name' }, o.name || '(bez názvu)'), el('span', { class: 'pz-pick-chk', html: AL.Icon('check') }));
+      const mark = () => { const on = st.sel.includes(key); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); };
+      b.addEventListener('click', () => {
+        const i = st.sel.indexOf(key);
+        if (i >= 0) st.sel.splice(i, 1); else st.sel.push(key);
+        mark();
+        refresh();
+      });
+      mark();
+      return b;
+    };
+    const panel = el('div', { class: 'pz-picker' }, el('strong', null, 'Zo zásobníka'),
+      free.length ? el('div', { class: 'pz-pick-grid' }, free.map((l) => tile('lib:' + l.id, l))) : note('Všetky obrázky zo zásobníka už sú v tejto kategórii.'));
+    if (srcs.length) {
+      panel.append(el('strong', null, 'Z iných aktivít (skopírujú sa do zásobníka)'));
+      const groups = new Map();
+      srcs.forEach((s) => { if (!groups.has(s.caption)) groups.set(s.caption, []); groups.get(s.caption).push(s); });
+      groups.forEach((list, cap) => panel.append(hint(cap), el('div', { class: 'pz-pick-grid' }, list.map((s) => tile('src:' + s.src, s)))));
+    }
+    addBtn.addEventListener('click', async () => {
+      if (pickBusy || !st.sel.length) return; // dvojité ťuknutie nesmie pridať dvakrát
+      pickBusy = true;
+      addBtn.disabled = true;
+      addBtn.lastChild.textContent = 'Pridávam…';
+      const bySrc = new Map(srcs.map((s) => [s.src, s]));
+      try {
+        for (const key of st.sel.slice()) {
+          const id = key.slice(4);
+          if (key.startsWith('lib:')) {
+            if (K.library.some((l) => l.id === id) && !cat.items.includes(id)) cat.items.push(id);
+            continue;
+          }
+          const s = bySrc.get(id);
+          if (!s) continue;
+          const ex = K.library.find((l) => l.src === id); // medzičasom už skopírované
+          if (ex) { if (!cat.items.includes(ex.id)) cat.items.push(ex.id); continue; }
+          const it = { id: AL.uid('k'), name: s.name, art: s.from.art || 'placeholder', src: id, photo: null, audio: null };
+          it.photo = await copyMedia(s.from.photo, 'img');
+          it.audio = s.withAudio ? await copyMedia(s.from.audio, 'aud') : null;
+          K.library.push(it);
+          cat.items.push(it.id);
+          save();
+        }
+      } finally {
+        pickBusy = false;
+        if (picker === st) picker = null;
+        openCats.add(cat.id);
+        save();
+        rerender.later();
+      }
+    });
+    refresh();
+    panel.append(el('div', { class: 'pz-btns' }, addBtn, btn('Zrušiť', null, () => { if (picker === st) picker = null; rerender(); })));
+    return panel;
+  }
+
+  function catCard(cat, ci, lib, rerender) {
+    const K = D().cards;
+    const vis = cat.items.map((id, i) => [lib.get(id), i]).filter((x) => x[0]); // id bez obrázka v zásobníku ignorujeme
+    const title = el('span', null, catLabel(cat));
+    const count = meta('');
+    const setMeta = () => { count.textContent = `(${nObr(vis.length)})${cat.active ? '' : ' · skrytá'}`; };
+    setMeta();
+    return lazyCard(cat.id, el('summary', null, AL.picture(cat), title, count), (d) => {
+      const row = el('div', { class: 'pz-row' });
+      row.append(el('div', { class: 'pz-kat-cover' }, imageEditor(cat, { host: row, onChange: rerender.later }), hint('Obrázok kategórie – dieťa ho vidí na prepínači kategórií dole. Bez neho sa tam ukáže prvý obrázok kategórie.')),
+        el('div', { class: 'pz-fields' },
+          textField('Názov kategórie (dieťa ho vidí veľkými písmenami)', cat, 'name', { placeholder: 'napr. Jedlo', onInput: () => { title.textContent = catLabel(cat); } }),
+          checkField('Zobraziť dieťaťu', cat, 'active', { after: setMeta }),
+          el('div', { class: 'pz-field' }, el('span', null, 'Názov kategórie vaším hlasom'), voiceEditor(cat, () => cat.name, d))));
+      d.append(row);
+
+      // nedokončené obrázky (bez fotky/ilustrácie alebo bez názvu aj nahrávky) dieťa nevidí – rodičovi to jasne povieme
+      const notReady = vis.filter(([it]) => !AL.cardsReady(it)).length;
+      if (!vis.length) d.append(note('Kategória je prázdna – dieťa ju zatiaľ neuvidí.', true));
+      else if (notReady === vis.length) d.append(note('Dieťa kategóriu zatiaľ neuvidí – nemá ešte žiadny hotový obrázok (s fotkou alebo ilustráciou a s názvom alebo nahrávkou).', true));
+      else if (notReady) d.append(note(`${nObr(notReady)} ${notReady === 1 ? 'ešte nie je hotový – dieťa ho neuvidí, kým nebude mať' : notReady <= 4 ? 'ešte nie sú hotové – dieťa ich neuvidí, kým nebudú mať' : 'ešte nie je hotových – dieťa ich neuvidí, kým nebudú mať'} fotku alebo ilustráciu a názov alebo nahrávku.`, true));
+
+      const swap = (k, dir) => {
+        const o = vis[k + dir];
+        if (!o) return;
+        const a = vis[k][1], b = o[1];
+        [cat.items[a], cat.items[b]] = [cat.items[b], cat.items[a]];
+        save();
+        rerender();
+      };
+      if (vis.length) {
+        const list = el('div', { class: 'pz-steps' });
+        vis.forEach(([it], k) => {
+          const others = K.categories.filter((c) => c !== cat && c.items.includes(it.id)).map(catLabel);
+          const missing = !AL.cardsReady(it) && ((AL.Media.has(it.photo) || (it.art && it.art !== 'placeholder')) ? 'chýba názov alebo nahrávka' : 'chýba fotka alebo ilustrácia');
+          list.append(itemRow(it, [
+            missing ? el('div', { class: 'pz-hint', style: { color: 'var(--coral)', fontWeight: 600 } }, `Dieťa tento obrázok zatiaľ nevidí – ${missing}.`) : null,
+            others.length ? hint('Aj v: ' + others.join(', ')) : null,
+            el('div', { class: 'pz-btns' },
+              btn('Vyššie', 'up', () => swap(k, -1)),
+              btn('Nižšie', 'down', () => swap(k, 1)),
+              btn('Odobrať z kategórie', null, () => { cat.items = cat.items.filter((x) => x !== it.id); save(); rerender(); }))], rerender.later));
+        });
+        d.append(el('div', { class: 'pz-kat-sub' }, el('strong', null, 'Obrázky v tejto kategórii'),
+          hint('Zmena fotky, názvu alebo hlasu platí vo všetkých kategóriách kartotéky (v aktivitách Ukáž či Tváre sa nezmení). „Odobrať z kategórie" obrázok nevymaže – ostane v zásobníku.')), list);
+      }
+
+      const status = el('span', { class: 'pz-hint pz-multi-status' });
+      const pickOpen = !!picker && picker.cat === cat.id;
+      d.append(el('div', { class: 'pz-btns' },
+        btn('Pridať z uložených obrázkov', 'image', () => {
+          picker = pickOpen ? null : { cat: cat.id, sel: [] }; // naraz je otvorený najviac jeden výber
+          openCats.add(cat.id);
+          rerender();
+        }, pickOpen ? 'on' : null),
+        btn('Nový obrázok', 'plus', () => {
+          const it = newCardItem();
+          K.library.push(it);
+          cat.items.push(it.id);
+          openCats.add(cat.id);
+          save();
+          rerender();
+        }),
+        multiPhotos(status, (it) => cat.items.push(it.id), () => { openCats.add(cat.id); rerender.later(); }),
+        status));
+      if (pickOpen) d.append(pickerPanel(cat, rerender));
+      d.append(el('div', { class: 'pz-btns pz-kat-actions' },
+        btn('Vyššie', 'up', () => { if (move(K.categories, ci, -1)) { save(); rerender(); } }),
+        btn('Nižšie', 'down', () => { if (move(K.categories, ci, 1)) { save(); rerender(); } }),
+        confirmButton('Odstrániť kategóriu', 'trash', `Odstrániť „${cat.name}"? Obrázky ostanú v zásobníku.`, async () => {
+          await removeMedia(cat.photo, cat.audio); // len vlastný obrázok a hlas kategórie, obrázky zo zásobníka ostávajú
+          drop(K.categories, cat);
+          openCats.delete(cat.id);
+          if (picker && picker.cat === cat.id) picker = null;
+          save();
+          rerender();
+        })));
+    });
+  }
+
+  function libraryCard(rerender) {
+    const K = D().cards;
+    const sum = el('summary', null, AL.picture(K.library[0] || { art: 'placeholder' }), el('span', null, 'Všetky obrázky'), meta(`(${nObr(K.library.length)})`));
+    return lazyCard('lib', sum, (d) => {
+      if (!K.library.length) d.append(note('Zásobník je prázdny.'));
+      else {
+        const list = el('div', { class: 'pz-steps' });
+        K.library.forEach((it) => {
+          const on = K.categories.filter((c) => c.items.includes(it.id)).map(catLabel);
+          list.append(itemRow(it, [
+            hint(on.length ? 'V kategóriách: ' + on.join(', ') : 'Nie je v žiadnej kategórii'),
+            el('div', { class: 'pz-btns' }, confirmButton('Vymazať natrvalo', 'trash', 'Vymazať natrvalo? Zmizne zo všetkých kategórií.', async () => {
+              await removeMedia(it.photo, it.audio);
+              drop(K.library, it);
+              K.categories.forEach((c) => { c.items = c.items.filter((x) => x !== it.id); });
+              save();
+              rerender();
+            }))], rerender.later));
+        });
+        d.append(list);
+      }
+      const status = el('span', { class: 'pz-hint pz-multi-status' });
+      d.append(el('div', { class: 'pz-btns' },
+        btn('Nový obrázok', 'plus', () => { K.library.push(newCardItem()); save(); rerender(); }),
+        multiPhotos(status, null, rerender.later), status));
+    });
+  }
+
+  R.cards = function (sec, ctx) {
+    const K = D().cards;
+    const lib = new Map(K.library.map((l) => [l.id, l]));
+    const rerender = () => ctx.rerender();
+    // po dokončení práce na pozadí: prekresliť práve otvorenú Rodičovskú zónu (aj keď ju rodič medzitým
+    // zatvoril a znova otvoril), len ak je v Kartotéke a práve nenahráva hlas
+    const live = () => { const c = liveCtx; return c && !c.dead && c.tab() === 'cards' ? c : null; };
+    rerender.later = () => { if (live()) laterRerender(() => { const c = live(); if (c) c.rerender(); }); };
+    sec.append(note('Dieťa listuje v kategóriách (napr. JEDLO, HRAČKY, MIESTA) – každá kategória má vlastnú stranu, pri väčšom počte obrázkov aj viac strán. Keď sa dotkne obrázka, obrázok sa zväčší a zaznie jeho názov vaším hlasom. Tak vám môže ukázať, čo chce jesť, robiť alebo kam chce ísť.'),
+      note('Tip: najlepšie fungujú skutočné fotografie z vášho domova a názvy nahraté vaším vlastným hlasom. Všetky obrázky sú v spoločnom zásobníku a každá kategória si z neho len vyberá – jeden obrázok tak môže byť vo viacerých kategóriách a keď ho z kategórie odoberiete, nevymaže sa.'));
+    if (!AL.Speech.canSpeak()) {
+      const used = new Set(K.categories.flatMap((c) => c.items).filter((id) => lib.has(id)));
+      const missing = [...used].filter((id) => !lib.get(id).audio).length;
+      if (missing) sec.append(note(`Pri ${missing} ${missing === 1 ? 'obrázku' : 'obrázkoch'} chýba nahratý názov a slovenský syntetický hlas nie je dostupný – dieťa pri nich nič nepočuje.`, true));
+    }
+
+    sec.append(el('h2', null, 'Nastavenia'), el('div', { class: 'pz-card' },
+      selectField('Počet obrázkov na jednej strane', K, 'perPage', [4, 6, 8, 9, 12].map((n) => ({ value: n, label: String(n) }))),
+      hint('Ak má kategória viac obrázkov, dieťa ich nájde na ďalšej strane. Menej obrázkov = väčšie a prehľadnejšie.'),
+      checkField('Zobraziť názov pod obrázkom', K, 'showNames'),
+      checkField('Pri zväčšenom obrázku zobraziť aj názov textom', K, 'zoomName'),
+      checkField('Pri prechode na inú kategóriu povedať jej názov', K, 'sayCategory'),
+      selectField('Zväčšený obrázok sa zavrie', K, 'autoClose', [
+        { value: 0, label: 'až keď sa ho dieťa dotkne' },
+        { value: 5, label: 'sám po 5 s' },
+        { value: 10, label: 'sám po 10 s' },
+        { value: 20, label: 'sám po 20 s' },
+      ])));
+
+    sec.append(el('h2', null, 'Kategórie'));
+    if (!K.categories.length) sec.append(note('Zatiaľ žiadna kategória – pridajte prvú, napr. „Jedlo".'));
+    K.categories.forEach((cat, ci) => sec.append(catCard(cat, ci, lib, rerender)));
+    sec.append(el('div', { class: 'pz-btns' }, btn('Pridať kategóriu', 'plus', () => {
+      const cat = { id: AL.uid('kat'), name: 'Nová kategória', art: 'placeholder', photo: null, audio: null, active: true, items: [] };
+      K.categories.push(cat);
+      openCats.add(cat.id);
+      save();
+      rerender();
+    }, 'primary')));
+
+    sec.append(el('h2', null, 'Zásobník obrázkov'),
+      note('Všetky obrázky kartotéky na jednom mieste. Môžete ich tu pripraviť dopredu a potom pridávať do kategórií tlačidlom „Pridať z uložených obrázkov". „Vymazať natrvalo" odstráni obrázok aj zo všetkých kategórií.'),
+      libraryCard(rerender));
+  };
+
   R.progress = function (sec, ctx) {
     const logs = D().log.slice().reverse();
     const sens = logs.filter((l) => l.type === 'sensory');
@@ -761,9 +1085,34 @@
       sec.append(t);
     }
 
-    if (logs.length) {
+    const K = D().cards;
+    const picks = (K && K.picks) || [];
+    sec.append(el('h2', null, 'Kartotéka'));
+    if (!picks.length) sec.append(note('Zatiaľ žiadne záznamy. Zobrazí sa tu, ktoré obrázky si dieťa v kartotéke vyberá najčastejšie.'));
+    else {
+      const lib = new Map(K.library.map((l) => [l.id, l]));
+      const cats = new Map(K.categories.map((c) => [c.id, c]));
+      const nameOf = (id) => { const it = lib.get(id); return it ? (it.name || '').trim() || '(bez názvu)' : '(vymazaný obrázok)'; };
+      const since = Date.now() - 30 * 864e5;
+      const cnt = new Map();
+      // vymazané obrázky spočítame spolu pod jedným názvom
+      picks.forEach((p) => { if (p.at >= since) { const k = lib.has(p.id) ? p.id : ''; cnt.set(k, (cnt.get(k) || 0) + 1); } });
+      const top = [...cnt].sort((a, b) => b[1] - a[1]).slice(0, 8);
+      if (top.length) sec.append(note('Najčastejšie (posledných 30 dní): ' + top.map(([id, c]) => `${nameOf(id)} (${c}×)`).join(', ') + '.'));
+      const t = el('table', { class: 'pz-table' }, el('tr', null, el('th', null, 'Kedy'), el('th', null, 'Obrázok'), el('th', null, 'Kategória')));
+      picks.slice().sort((a, b) => b.at - a.at).slice(0, 30).forEach((p) => {
+        const c = cats.get(p.cat);
+        t.append(el('tr', null, el('td', null, AL.formatDate(p.at)),
+          el('td', null, el('span', { class: 'pz-pick-cell' }, AL.picture(lib.get(p.id) || { art: 'placeholder' }), nameOf(p.id))),
+          el('td', null, c ? catLabel(c) : '–')));
+      });
+      sec.append(el('div', { style: { fontSize: '.9rem', color: 'var(--ink-soft)' } }, 'Posledné výbery:'), t);
+    }
+
+    if (logs.length || picks.length) {
       sec.append(el('div', { class: 'pz-btns' }, confirmButton('Vymazať prehľad', 'trash', 'Vymazať všetky záznamy?', () => {
         D().log = [];
+        if (K && K.picks) K.picks.length = 0; // pole ponecháme – obrazovka kartotéky si naň môže držať odkaz
         save();
         ctx.rerender();
       })));
@@ -873,11 +1222,14 @@
         // nedokončené nahrávanie zahodíme, inak by mikrofón bežal ďalej a tlačidlá by nereagovali
         if (AL.Recorder.active) AL.Recorder.stop();
         activeRec = null;
+        pendingRerender = null; // záložka sa práve kreslí celá nanovo
         body.innerHTML = '';
         R[id](body, ctx);
         window.scrollTo(0, keepScroll ? y : 0);
       };
       ctx.rerender = () => show(tab, true);
+      ctx.tab = () => tab;
+      liveCtx = ctx;
 
       // Ctrl+V s obrázkom v schránke → vloží sa do naposledy použitého náhľadu obrázka
       scope.on(document, 'paste', (e) => {
@@ -899,6 +1251,9 @@
       show(tab);
 
       return async () => {
+        ctx.dead = true; // práca na pozadí dobehne, ale túto (už zatvorenú) zónu neprekresľuje
+        if (liveCtx === ctx) liveCtx = null;
+        pendingRerender = null;
         AL.Config.onSaved = null;
         clearTimeout(savedT);
         if (AL.Recorder.active) await AL.Recorder.stop();

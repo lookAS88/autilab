@@ -11,6 +11,7 @@
     { id: 'sensory', label: 'Zvuky', art: 'speaker', desc: 'Senzorický trenažér' },
     { id: 'faces', label: 'Kto je to?', art: 'family', desc: 'Blízke a bezpečné osoby' },
     { id: 'show', label: 'Ukáž', art: 'pointTile', desc: 'Nájdi obrázok podľa názvu' },
+    { id: 'cards', label: 'Kartotéka', art: 'cardsTile', desc: 'Výber činností a vecí podľa kategórií' },
   ];
 
   AL.screens.home = {
@@ -33,6 +34,7 @@
         hint.textContent = AL.Speech.supported && AL.Speech.voices().length && !AL.Speech.canSpeak()
           ? 'Pre dospelých: v prehliadači chýba slovenský hlas, vety zaznejú len z vašich nahrávok. Riešenie: Rodičovská zóna → Všeobecné → Hlas aplikácie.'
           : '';
+        root.classList.toggle('has-hint', !!hint.textContent); // dlaždice nechajú poznámke miesto
       };
       check();
       scope.timeout(check, 1500); // zoznam hlasov sa v prehliadači načítava s oneskorením

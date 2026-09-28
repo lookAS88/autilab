@@ -1,7 +1,7 @@
 {
   "name": "AutiLab",
   "short_name": "AutiLab",
-  "description": "Pokojná aplikácia pre deti s PAS: komunikácia obrázkami, kroky rutín, vizuálny časovač, senzorický trenažér a blízke osoby.",
+  "description": "Pokojná aplikácia pre deti s PAS: komunikácia obrázkami, kroky rutín, vizuálny časovač, senzorický trenažér, blízke osoby, hľadanie obrázkov a kartotéka na výber činností.",
   "lang": "sk",
   "start_url": "./index.html",
   "scope": "./",

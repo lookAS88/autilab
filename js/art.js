@@ -9,7 +9,7 @@
     skin: '#F2C9A5', red: '#D98C7A', coral: '#E3AE9C', green: '#8DB596', greenD: '#6F9C7A', greenL: '#A9CBA4',
     yellow: '#F2D48F', yellowD: '#D9B25F', brown: '#C49A6C', brownL: '#E6C9A8', brownD: '#8C6446',
     gray: '#C9CDD2', grayL: '#E8E4DC', purple: '#B6A6CF', pink: '#EBB7B7', blue: '#7DA2C1', navy: '#3B5374',
-    mouth: '#B5615A',
+    mouth: '#B5615A', hair: '#B4B8BE',
   };
 
   const hand = (thumbSide) => `
@@ -22,6 +22,12 @@
     <path d="M-32 -14 L-32 14 Q-32 44 -1 44 Q30 44 30 14 L30 -14"/>`;
 
   const bubble = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#FFFFFF" stroke="${C.waterD}" stroke-width="4"/>`;
+
+  /* Kocka v jednoduchej perspektíve: predná stena, vrch a bok */
+  const cube = (x, y, s, d, front, top, side) => `
+    <path d="M${x} ${y} L${x + d} ${y - d} L${x + s + d} ${y - d} L${x + s} ${y} Z" fill="${top}"/>
+    <path d="M${x + s} ${y} L${x + s + d} ${y - d} L${x + s + d} ${y + s - d} L${x + s} ${y + s} Z" fill="${side}"/>
+    <rect x="${x}" y="${y}" width="${s}" height="${s}" rx="3" fill="${front}"/>`;
 
   const face = (o) => `
     <rect x="0" y="0" width="200" height="200" fill="${o.bg}" stroke="none"/>
@@ -425,6 +431,19 @@
       bg: '#EEEAE2', shirt: C.gray,
       hair: `<path d="M60 84 Q58 44 100 42 Q142 44 140 84 Q128 60 100 60 Q72 60 60 84 Z" fill="#7A6A5C"/>`,
     }),
+    grandma: () => face({
+      bg: '#F2E8E4', shirt: C.red,
+      hairBack: `<circle cx="100" cy="36" r="20" fill="${C.hair}"/>`,
+      hair: `<path d="M58 92 Q54 46 100 46 Q146 46 142 92 Q136 64 100 62 Q64 64 58 92 Z" fill="${C.hair}"/>`,
+      extra: `<circle cx="85" cy="93" r="13" stroke-width="4"/><circle cx="115" cy="93" r="13" stroke-width="4"/><path d="M98 92 Q100 89 102 92" stroke-width="4"/>`,
+    }),
+    grandpa: () => face({
+      bg: '#E5EBF0', shirt: C.blue,
+      hairBack: `<path d="M66 50 Q46 52 50 70 Q40 80 52 92 Q58 100 66 92 Z M134 50 Q154 52 150 70 Q160 80 148 92 Q142 100 134 92 Z" fill="${C.hair}"/>`,
+      hair: `<path d="M82 56 Q92 50 104 52" stroke="#FFFFFF" stroke-width="6" opacity=".8"/>`,
+      extra: `<path d="M80 110 Q88 100 100 106 Q112 100 120 110 Q110 116 100 111 Q90 116 80 110 Z" fill="${C.hair}" stroke-width="4"/>
+        <path d="M76 70 Q84 62 94 66 M106 66 Q116 62 124 70" stroke="${C.hair}" stroke-width="6"/>`,
+    }),
 
     lost: () => `
       <path d="M100 178 C70 138 48 112 48 80 A52 52 0 0 1 152 80 C152 112 130 138 100 178 Z" fill="${C.red}"/>
@@ -446,6 +465,161 @@
       <rect x="58" y="108" width="22" height="22" rx="3" fill="${C.sky}" stroke-width="4"/>
       <rect x="126" y="108" width="22" height="22" rx="3" fill="${C.sky}" stroke-width="4"/>`,
 
+    /* ---------- Kartotéka: jedlo ---------- */
+    bread: () => `<g transform="translate(0 -10)">
+      <path d="M18 150 Q16 74 88 68 Q158 66 160 134 L160 150 Q160 156 154 156 L24 156 Q18 156 18 150 Z" fill="${C.brown}"/>
+      <path d="M44 96 L58 118 M72 84 L86 108" stroke="${C.brownD}" stroke-width="5"/>
+      <path d="M108 176 L108 120 Q94 116 96 102 Q98 88 116 88 L160 88 Q178 88 180 102 Q182 116 168 120 L168 176 Q168 182 162 182 L114 182 Q108 182 108 176 Z" fill="${C.brown}"/>
+      <path d="M118 170 L118 113 Q106 111 106 102 Q107 97 118 97 L158 97 Q170 97 170 102 Q170 111 158 113 L158 170 Z" fill="${C.brownL}" stroke="none"/></g>`,
+
+    yogurt: () => `
+      <path d="M118 84 L148 22" stroke="${C.ink}" stroke-width="16"/>
+      <path d="M118 84 L148 22" stroke="${C.gray}" stroke-width="6"/>
+      <path d="M50 78 L150 78 L138 178 L62 178 Z" fill="#FFFFFF"/>
+      <path d="M53.5 106 L146.5 106 L141.6 146 L58.4 146 Z" fill="${C.pink}" stroke="none"/>
+      <path d="M50 78 L150 78 L138 178 L62 178 Z"/>
+      <path d="M100 122 C94 114 84 118 86 128 C88 136 96 142 100 142 C104 142 112 136 114 128 C116 118 106 114 100 122 Z" fill="${C.red}" stroke-width="4"/>
+      <path d="M92 116 L100 122 L108 116" stroke="${C.greenD}" stroke-width="4"/>
+      <ellipse cx="100" cy="78" rx="54" ry="13" fill="#FFFFFF"/>
+      <ellipse cx="100" cy="79" rx="42" ry="7" fill="${C.grayL}" stroke="none"/>
+      <path d="M112 80 L124 58" stroke="${C.ink}" stroke-width="16"/>
+      <path d="M112 80 L124 58" stroke="${C.gray}" stroke-width="6"/>`,
+
+    /* Palacinky: zrolované, na konci vidno špirálu s džemom */
+    pancakes: () => {
+      const roll = (x, y) => `
+      <rect x="${x}" y="${y}" width="122" height="36" rx="18" fill="${C.yellow}"/>
+      <ellipse cx="${x + 112}" cy="${y + 18}" rx="11" ry="18" fill="${C.yellow}"/>
+      <path d="M${x + 112} ${y + 18} a2.5 3.5 0 0 1 5 0 a5 8 0 0 1 -10 0 a7.5 12 0 0 1 14 -1" stroke="${C.red}" stroke-width="4"/>`;
+      return `<g transform="translate(0 -14)">
+      <ellipse cx="100" cy="140" rx="86" ry="34" fill="#FFFFFF"/>
+      <ellipse cx="100" cy="138" rx="62" ry="20" stroke="${C.grayL}" stroke-width="4"/>
+      ${roll(30, 82)}${roll(42, 114)}
+      <path d="M52 94 L60 94 M84 104 L94 104 M118 96 L126 96 M64 126 L74 126 M98 138 L108 138 M128 128 L136 128" stroke="${C.yellowD}" stroke-width="5"/></g>`;
+    },
+
+    pasta: () => `
+      <path d="M36 104 Q38 58 100 54 Q162 58 164 104 Z" fill="${C.yellow}"/>
+      <path d="M50 96 Q58 76 74 90 Q86 102 94 84 M108 84 Q118 70 130 84 Q140 96 150 88 M66 72 Q80 62 90 70 M120 102 Q128 90 140 100" stroke="${C.yellowD}" stroke-width="5"/>
+      <path d="M78 66 Q76 46 100 44 Q126 44 124 64 Q114 72 100 68 Q88 74 78 66 Z" fill="${C.red}"/>
+      <path d="M100 46 Q110 34 122 40 Q114 52 100 46 Z" fill="${C.green}" stroke-width="4"/>
+      <path d="M22 102 L178 102 Q172 172 100 174 Q28 172 22 102 Z" fill="${C.blue}"/>
+      <path d="M36 118 Q100 128 164 118" stroke="#FFFFFF" stroke-width="5" opacity=".7"/>`,
+
+    meat: () => `
+      <circle cx="146" cy="170" r="13" fill="#FFFFFF"/>
+      <circle cx="168" cy="148" r="13" fill="#FFFFFF"/>
+      <path d="M110 112 L154 156" stroke="${C.ink}" stroke-width="28"/>
+      <path d="M110 112 L156 158" stroke="#FFFFFF" stroke-width="16"/>
+      <path d="M40 58 Q56 22 100 30 Q146 40 144 86 Q142 116 124 130 Q104 142 80 136 Q42 126 34 96 Q30 76 40 58 Z" fill="${C.brown}"/>
+      <path d="M58 60 Q70 44 90 44" stroke="${C.brownL}" stroke-width="7"/>`,
+
+    apple: () => `
+      <path d="M100 58 C80 40 30 44 32 102 C34 148 66 182 100 170 C134 182 166 148 168 102 C170 44 120 40 100 58 Z" fill="${C.red}"/>
+      <path d="M100 58 Q96 40 106 24" stroke="${C.brownD}" stroke-width="7"/>
+      <path d="M106 38 Q128 16 152 30 Q130 54 106 38 Z" fill="${C.green}"/>
+      <path d="M58 86 Q62 70 76 66" stroke="#FFFFFF" stroke-width="8" opacity=".75"/>`,
+
+    /* ---------- Kartotéka: aktivity a hračky ---------- */
+    drawing: () => `
+      <rect x="24" y="30" width="132" height="120" rx="6" fill="#FFFFFF" transform="rotate(-6 90 90)"/>
+      <circle cx="62" cy="70" r="14" stroke="${C.yellowD}" stroke-width="6" fill="${C.yellow}"/>
+      <path d="M62 44 L62 38 M36 70 L30 70 M88 70 L94 70 M44 52 L40 48 M80 52 L84 48" stroke="${C.yellowD}" stroke-width="5"/>
+      <path d="M98 114 L98 88 L118 72 L138 88 L138 114 Z" stroke="${C.red}" stroke-width="6" transform="rotate(-6 90 90)"/>
+      <path d="M34 128 Q60 112 90 124 Q120 136 146 114" stroke="${C.green}" stroke-width="7"/>
+      <g transform="rotate(-40 140 150)">
+        <rect x="96" y="138" width="78" height="24" rx="4" fill="${C.blue}"/>
+        <rect x="116" y="138" width="36" height="24" fill="${C.sky}" stroke-width="4"/>
+        <path d="M174 140 L194 150 L174 160 Z" fill="${C.blue}"/>
+      </g>`,
+
+    bath: () => `
+      <path d="M22 104 L178 104 L170 142 Q164 166 138 166 L62 166 Q36 166 30 142 Z" fill="#FFFFFF"/>
+      <rect x="54" y="160" width="14" height="20" rx="5" fill="${C.gray}"/>
+      <rect x="132" y="160" width="14" height="20" rx="5" fill="${C.gray}"/>
+      ${bubble(46, 96, 14)}${bubble(70, 88, 16)}${bubble(152, 92, 14)}${bubble(172, 98, 9)}${bubble(30, 102, 9)}${bubble(96, 60, 9)}${bubble(80, 36, 6)}
+      <path d="M112 100 Q108 76 124 72 Q118 60 126 50 Q140 42 150 54 Q156 64 148 72 Q164 80 158 98 Z" fill="${C.yellow}"/>
+      <path d="M150 58 L166 62 L150 68 Z" fill="${C.coral}" stroke-width="4"/>
+      <circle cx="138" cy="58" r="4" fill="${C.ink}" stroke="none"/>
+      <rect x="14" y="98" width="172" height="16" rx="8" fill="#FFFFFF"/>`,
+
+    music: () => `
+      <path d="M50 58 L96 104 M122 58 L76 104" stroke="${C.ink}" stroke-width="14"/>
+      <path d="M50 58 L96 104 M122 58 L76 104" stroke="${C.brownL}" stroke-width="5"/>
+      <circle cx="50" cy="58" r="9" fill="${C.brownL}"/><circle cx="122" cy="58" r="9" fill="${C.brownL}"/>
+      <path d="M28 116 L28 160 Q28 180 86 180 Q144 180 144 160 L144 116" fill="${C.red}"/>
+      <path d="M32 122 L50 170 L68 126 L86 174 L104 126 L122 170 L140 122" stroke="#FFFFFF" stroke-width="5"/>
+      <ellipse cx="86" cy="116" rx="58" ry="17" fill="${C.grayL}"/>
+      <path d="M148 34 L182 26 L182 38 L148 46 Z" fill="${C.navy}" stroke-width="5"/>
+      <path d="M148 40 L148 92 M182 32 L182 84" stroke-width="6"/>
+      <ellipse cx="138" cy="94" rx="13" ry="10" transform="rotate(-20 138 94)" fill="${C.navy}"/>
+      <ellipse cx="172" cy="86" rx="13" ry="10" transform="rotate(-20 172 86)" fill="${C.navy}"/>`,
+
+    ball: () => `
+      <circle cx="100" cy="104" r="72" fill="${C.yellow}"/>
+      <path d="M100 32 Q52 104 100 176 A72 72 0 0 1 100 32 Z" fill="${C.red}" stroke="none"/>
+      <path d="M100 32 Q148 104 100 176 A72 72 0 0 0 100 32 Z" fill="${C.blue}" stroke="none"/>
+      <path d="M100 32 Q52 104 100 176 M100 32 Q148 104 100 176" stroke-width="5"/>
+      <circle cx="100" cy="104" r="72"/>
+      <path d="M50 76 Q58 60 72 52" stroke="#FFFFFF" stroke-width="8" opacity=".7"/>`,
+
+    car: () => `
+      <path d="M22 138 L22 114 Q22 102 34 100 L60 96 L78 64 Q82 58 90 58 L128 58 Q136 58 140 64 L160 96 Q178 98 178 114 L178 138 Q178 144 172 144 L28 144 Q22 144 22 138 Z" fill="${C.red}"/>
+      <path d="M86 68 L96 68 L96 94 L70 94 Z" fill="${C.sky}" stroke-width="4"/>
+      <path d="M104 68 L126 68 Q131 68 133 72 L146 94 L104 94 Z" fill="${C.sky}" stroke-width="4"/>
+      <path d="M100 100 L100 132 M108 110 L116 110" stroke-width="4"/>
+      <rect x="164" y="108" width="12" height="10" rx="4" fill="${C.yellow}" stroke-width="4"/>
+      <circle cx="60" cy="144" r="21" fill="${C.ink}" stroke="none"/><circle cx="60" cy="144" r="8" fill="${C.gray}" stroke="none"/>
+      <circle cx="140" cy="144" r="21" fill="${C.ink}" stroke="none"/><circle cx="140" cy="144" r="8" fill="${C.gray}" stroke="none"/>`,
+
+    blocks: () => `
+      ${cube(24, 114, 64, 16, C.blue, C.sky, '#6C8FAD')}
+      ${cube(90, 114, 64, 16, C.green, C.greenL, C.greenD)}
+      ${cube(58, 46, 64, 16, C.red, C.coral, '#C27966')}
+      <circle cx="56" cy="146" r="15" fill="${C.sky}" stroke="none"/>
+      <path d="M106 162 L122 130 L138 162 Z" fill="${C.greenL}" stroke="none"/>
+      <path d="M90 94 C78 84 72 74 78 68 C83 63 89 65 90 71 C91 65 97 63 102 68 C108 74 102 84 90 94 Z" fill="${C.coral}" stroke="none"/>`,
+
+    /* ---------- Kartotéka: miesta ---------- */
+    playground: () => `
+      <path d="M8 176 Q100 164 192 176 L192 190 L8 190 Z" fill="${C.greenL}"/>
+      <path d="M40 176 L40 50 M76 176 L76 50" stroke-width="7"/>
+      <path d="M40 76 L76 76 M40 102 L76 102 M40 128 L76 128 M40 154 L76 154" stroke-width="6"/>
+      <path d="M76 56 C116 60 124 150 176 166" stroke="${C.ink}" stroke-width="28"/>
+      <path d="M76 56 C116 60 124 150 176 166" stroke="${C.yellow}" stroke-width="16"/>
+      <rect x="32" y="42" width="52" height="14" rx="5" fill="${C.brown}"/>
+      <path d="M36 42 Q36 22 58 22 Q80 22 80 42" stroke="${C.blue}" stroke-width="8"/>`,
+
+    shop: () => {
+      let aw = '';
+      for (let i = 0; i < 6; i++) {
+        const x = 24 + i * 25.33;
+        aw += `<path d="M${x} 48 L${x + 25.33} 48 L${x + 25.33} 76 A12.67 12.67 0 0 1 ${x} 76 Z" fill="${i % 2 ? '#FFFFFF' : C.red}"/>`;
+      }
+      return `
+      <rect x="36" y="70" width="128" height="108" fill="${C.grayL}"/>
+      <rect x="48" y="102" width="60" height="50" rx="4" fill="${C.sky}"/>
+      <path d="M48 134 L108 134" stroke-width="5"/>
+      <circle cx="62" cy="124" r="8" fill="${C.red}" stroke-width="4"/><circle cx="80" cy="124" r="8" fill="${C.yellow}" stroke-width="4"/><circle cx="96" cy="124" r="7" fill="${C.green}" stroke-width="4"/>
+      <rect x="120" y="102" width="32" height="76" rx="3" fill="${C.brown}"/>
+      <circle cx="144" cy="142" r="3.5" fill="${C.ink}" stroke="none"/>
+      <rect x="28" y="30" width="144" height="20" rx="6" fill="${C.blue}"/>
+      ${aw}
+      <path d="M20 178 L180 178" stroke-width="7"/>`;
+    },
+
+    school: () => `
+      <path d="M100 32 L100 8" stroke-width="5"/>
+      <path d="M100 8 L124 15 L100 22 Z" fill="${C.red}" stroke-width="4"/>
+      <rect x="30" y="94" width="140" height="84" fill="${C.pink}"/>
+      <path d="M18 98 L50 64 L150 64 L182 98 Z" fill="${C.green}"/>
+      <path d="M62 98 L100 30 L138 98 Z" fill="${C.green}"/>
+      <circle cx="100" cy="74" r="12" fill="${C.yellow}" stroke-width="5"/>
+      <rect x="84" y="126" width="32" height="52" rx="14" fill="${C.brown}"/>
+      <rect x="42" y="112" width="28" height="26" rx="4" fill="${C.sky}" stroke-width="5"/>
+      <rect x="130" y="112" width="28" height="26" rx="4" fill="${C.sky}" stroke-width="5"/>
+      <path d="M42 152 L70 152 M130 152 L158 152" stroke="${C.coral}" stroke-width="6"/>`,
+
     /* ---------- Dlaždice modulov ---------- */
     pecsTile: () => `
       <path d="M26 38 Q26 22 42 22 L158 22 Q174 22 174 38 L174 124 Q174 140 158 140 L90 140 L52 174 L60 140 L42 140 Q26 140 26 124 Z" fill="#FFFFFF"/>
@@ -461,6 +635,22 @@
       <rect x="86" y="93" width="86" height="16" rx="8" fill="${C.grayL}" stroke="none"/>
       <rect x="30" y="132" width="42" height="42" rx="9" fill="#FFFFFF"/>
       <rect x="86" y="145" width="86" height="16" rx="8" fill="${C.grayL}" stroke="none"/>`,
+    /* Kartotéka: kartičky s obrázkami a farebnými záložkami v krabičke */
+    cardsTile: () => {
+      const side = (rot, cx, tabX, tab, pic) => `<g transform="rotate(${rot} ${cx} 182)">
+        <rect x="${tabX}" y="52" width="22" height="20" rx="6" fill="${tab}" stroke-width="5"/>
+        <rect x="${cx - 28}" y="64" width="56" height="112" rx="8" fill="#FFFFFF" stroke-width="5"/>${pic}</g>`;
+      return `
+      ${side(-11, 60, 36, C.red, `<path d="M60 90 C53 82 40 85 41 100 C42 112 52 118 60 115 C68 118 78 112 79 100 C80 85 67 82 60 90 Z" fill="${C.red}" stroke-width="4"/><path d="M60 90 Q59 83 63 78" stroke="${C.brownD}" stroke-width="4"/>`)}
+      ${side(11, 140, 142, C.yellow, `<path d="M120 100 L140 82 L160 100 Z" fill="${C.red}" stroke-width="4"/><rect x="125" y="100" width="30" height="20" fill="${C.yellow}" stroke-width="4"/>`)}
+      <rect x="88" y="30" width="24" height="20" rx="6" fill="${C.green}" stroke-width="5"/>
+      <rect x="70" y="42" width="60" height="134" rx="8" fill="#FFFFFF" stroke-width="5"/>
+      <circle cx="100" cy="84" r="21" fill="${C.blue}" stroke="none"/>
+      <path d="M100 63 Q86 84 100 105 A21 21 0 0 1 100 63 Z" fill="${C.yellow}" stroke="none"/>
+      <path d="M100 63 Q86 84 100 105" stroke-width="4"/><circle cx="100" cy="84" r="21" stroke-width="5"/>
+      <rect x="22" y="132" width="156" height="52" rx="10" fill="${C.blue}"/>
+      <rect x="78" y="150" width="44" height="12" rx="6" fill="${C.navy}" stroke="none"/>`;
+    },
     family: () => `
       <path d="M18 196 Q20 132 70 128 Q120 132 122 196" fill="${C.purple}"/>
       <circle cx="70" cy="86" r="30" fill="${C.skin}"/>
@@ -477,7 +667,7 @@
       <path d="M62 100 Q70 106 78 100 M122 100 Q130 106 138 100 M93 138 Q100 143 107 138" stroke-width="4"/>`,
   };
 
-  const FULL = new Set(['scene', 'mom', 'dad', 'sibling', 'doctor', 'police', 'person']);
+  const FULL = new Set(['scene', 'mom', 'dad', 'sibling', 'doctor', 'police', 'person', 'grandma', 'grandpa']);
 
   AL.Art = {
     C,
@@ -490,12 +680,12 @@
     isFull: (id) => FULL.has(id),
     /* Ilustrácie, z ktorých si rodič môže vybrať pri novej položke */
     catalog: [
-      'water', 'food', 'toy', 'wc', 'help', 'rest', 'outside', 'hug',
-      'tap', 'soap', 'wash', 'towel', 'paper', 'flush', 'tshirt', 'pants', 'socks', 'shoes', 'toothpaste', 'toothbrush',
-      'chair', 'breathe', 'book', 'scene', 'hourglass',
+      'water', 'food', 'bread', 'yogurt', 'pancakes', 'pasta', 'meat', 'apple', 'toy', 'ball', 'car', 'blocks', 'wc', 'help', 'rest', 'outside', 'hug',
+      'tap', 'soap', 'wash', 'towel', 'bath', 'paper', 'flush', 'tshirt', 'pants', 'socks', 'shoes', 'toothpaste', 'toothbrush',
+      'chair', 'breathe', 'book', 'drawing', 'music', 'scene', 'hourglass',
       'vacuum', 'dryer', 'baby', 'bell', 'speaker',
       'dog', 'cat', 'cow', 'fish', 'bird',
-      'mom', 'dad', 'sibling', 'doctor', 'police', 'person', 'home', 'lost', 'hurt',
+      'mom', 'dad', 'grandma', 'grandpa', 'sibling', 'doctor', 'police', 'person', 'home', 'playground', 'shop', 'school', 'lost', 'hurt',
     ],
   };
 

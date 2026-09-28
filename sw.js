@@ -2,12 +2,12 @@
    Aplikácia sa vždy načíta okamžite z uloženej kópie – aj keď je Wi-Fi bez internetu.
    Nová verzia sa stiahne celá naraz na pozadí (pri zmene CACHE nižšie) a použije sa pri ďalšom spustení,
    takže sa nikdy nepomiešajú staré a nové súbory. */
-const CACHE = 'autilab-v5'; // pri každej novej verzii aplikácie zvýšiť
+const CACHE = 'autilab-v6'; // pri každej novej verzii aplikácie zvýšiť
 const PREFIX = 'autilab-';  // mažeme len svoje kópie (na github.io môžu byť aj iné aplikácie toho istého účtu)
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'css/app.css',
   'js/core.js', 'js/db.js', 'js/store.js', 'js/art.js', 'js/audio.js', 'js/ui.js',
-  'js/modules/pecs.js', 'js/modules/routines.js', 'js/modules/timer.js', 'js/modules/sensory.js', 'js/modules/faces.js', 'js/modules/show.js',
+  'js/modules/pecs.js', 'js/modules/routines.js', 'js/modules/timer.js', 'js/modules/sensory.js', 'js/modules/faces.js', 'js/modules/show.js', 'js/modules/cards.js',
   'js/parent.js', 'js/app.js',
 ];
 

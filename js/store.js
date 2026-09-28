@@ -24,6 +24,37 @@
     { id: 'reveal', art: 'revealIcon', label: 'Obrázok' },
   ];
 
+  /* Kartotéka: spoločný zásobník obrázkov (library) a kategórie, ktoré naň odkazujú cez id.
+     Fotku a hlas vlastní položka zásobníka – odobratie z kategórie ich nemaže. */
+  function cardsDefaults() {
+    const library = [];
+    const cat = (name, art, items) => ({
+      id: AL.uid('kat'), name, art, photo: null, audio: null, active: true,
+      items: items.map(([n, a]) => {
+        const it = { id: AL.uid('k'), name: n, art: a, photo: null, audio: null };
+        library.push(it);
+        return it.id;
+      }),
+    });
+    const categories = [
+      cat('Jedlo', 'food', [['chlieb', 'bread'], ['jogurt', 'yogurt'], ['palacinky', 'pancakes'], ['cestoviny', 'pasta'], ['mäso', 'meat'], ['jablko', 'apple']]),
+      cat('Aktivity', 'drawing', [['kreslenie', 'drawing'], ['knižka', 'book'], ['ísť von', 'outside'], ['kúpanie', 'bath'], ['hudba', 'music'], ['oddych', 'rest']]),
+      cat('Hračky', 'toy', [['macko', 'toy'], ['lopta', 'ball'], ['autíčko', 'car'], ['kocky', 'blocks']]),
+      cat('Miesta', 'playground', [['domov', 'home'], ['ihrisko', 'playground'], ['obchod', 'shop'], ['škôlka', 'school']]),
+      cat('Ľudia', 'family', [['mama', 'mom'], ['ocko', 'dad'], ['súrodenec', 'sibling'], ['babka', 'grandma'], ['dedko', 'grandpa']]),
+    ];
+    return {
+      perPage: 6,        // obrázkov na jednej strane (4, 6, 8, 9, 12); viac obrázkov v kategórii = viac strán
+      showNames: true,   // názov pod obrázkom na strane
+      zoomName: true,    // názov pod zväčšeným obrázkom
+      sayCategory: true, // pri prechode na inú kategóriu povedať jej názov
+      autoClose: 0,      // zväčšený obrázok sa sám zavrie po X s (0 = až po dotyku dieťaťa)
+      library,
+      categories,
+      picks: [],         // posledné výbery dieťaťa [{ id, cat, at }] – len pre záložku Prehľad (najviac 400)
+    };
+  }
+
   AL.defaults = function () {
     return {
       version: 1,
@@ -34,8 +65,9 @@
         feedbackVolume: 0.55,
         praiseVoice: true,
         reduceMotion: false,
-        modules: { pecs: true, routines: true, timer: true, sensory: true, faces: true, show: true },
+        modules: { pecs: true, routines: true, timer: true, sensory: true, faces: true, show: true, cards: true },
       },
+      cards: cardsDefaults(),
       show: {
         askEachTime: true,   // pred každým spustením vybrať skupinu a počet obrázkov
         count: 3,            // počet obrázkov na obrazovke (2–6)
@@ -149,6 +181,13 @@
     onSaved: null,
     async load() {
       const stored = await AL.DB.get('kv', 'config');
+      // nová aktivita po aktualizácii: zapneme ju, len ak rodič nechával zapnuté všetko. Kto dieťaťu vybral
+      // len niektoré aktivity, tomu sa úvodná obrazovka sama nezmení (aktivitu si zapne vo Všeobecné → Aktivity)
+      const mods = stored && stored.settings && stored.settings.modules;
+      if (mods) {
+        const all = Object.values(mods).every(Boolean);
+        for (const id of Object.keys(AL.defaults().settings.modules)) if (!(id in mods)) mods[id] = all;
+      }
       this.data = stored ? mergeDefaults(stored, AL.defaults()) : AL.defaults();
       if (!stored) await saveNow();
       return this.data;
